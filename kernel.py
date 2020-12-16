@@ -54,7 +54,8 @@ The following initrd specific options are provided by this plugin:
 
     - kernel-initrd-compression:
       (string; default: lz4)
-      initrd compression to use; the only supported values now are 'lz4', 'xz', 'gz'.
+      initrd compression to use; the only supported values now are
+      'lz4', 'xz', 'gz'.
 
     - kernel-initrd-compression-options:
       Optional list of parameters to be passed to compressor used for initrd
@@ -64,19 +65,21 @@ The following initrd specific options are provided by this plugin:
         xz:  -7
 
     - kernel-initrd-flavour
-      Optional parameter(Default flavour is none). For uc16/18 supported flavour is 'fde'
+      Optional parameter(Default flavour is none). For uc16/18 supported
+      flavour is 'fde'
 
     - kernel-initrd-base-url
       Optional base url to be used to download reference inird from.
       TODO: this will eventually override snap store download option
-      For now this overides base url from default people.canonical.com/~okubik/...
+      For now this overides base url from default
+      people.canonical.com/~okubik/...
       Default: https://people.canonical.com/~okubik/uc-initrds
 
     - kernel-initrd-overlay
       Optional overlay to be applied to built initrd
-      This option is designed to provide easy way to apply initrd overlay for cases
-      as full disk encryption support, when device specific hooks need to be added
-      to the initrd.
+      This option is designed to provide easy way to apply initrd overlay for
+      cases as full disk encryption support, when device specific hooks need
+      to be added to the initrd.
       Value is relative path, in stage directory. and related part needs to be
       built before initrd part. During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-overlay}
@@ -84,7 +87,8 @@ The following initrd specific options are provided by this plugin:
     - kernel-initrd-core-base
       Optional override to specify target Ubuntu Core base, regardless if there
       is defined build-base in the top level of the snapcraft project.
-      Supported values are same as for build-base: 'core(16)', 'core18', 'core20'.
+      Supported values are same as for build-base: 'core(16)', 'core18',
+      'core20'.
 """
 
 import glob
@@ -92,23 +96,20 @@ import logging
 import os
 import shutil
 import subprocess
-import urllib.parse
 
 import snapcraft
 from snapcraft.plugins.v1 import kbuild
-from os import listdir
 from snapcraft.internal.indicators import (
      download_urllib_source,
 )
 from snapcraft.internal import errors
-from snapcraft.internal.errors import SnapcraftPluginCommandError
 
 logger = logging.getLogger(__name__)
 
-_compression_command = {"gz": "gzip", "lz4":"lz4", "xz": "xz"}
-_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7" }
+_compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz"}
+_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7"}
 _INITRD_BASE_URL = "https://people.canonical.com/~okubik/uc-initrds"
-_INITRD_URL  = "{base_url}/{snap_name}"
+_INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
 
@@ -196,7 +197,6 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": True,
         }
 
-
         schema["properties"]["kernel-device-trees"] = {
             "type": "array",
             "minitems": 1,
@@ -204,7 +204,6 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "items": {"type": "string"},
             "default": [],
         }
-
 
         schema["required"] = ["source"]
 
@@ -280,13 +279,15 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     @property
     def compression_cmd(self):
-        compressor = _compression_command[self.options.kernel_initrd_compression]
+        compressor = \
+            _compression_command[self.options.kernel_initrd_compression]
         options = ""
         if self.options.kernel_initrd_compression_options:
             for opt in self.options.kernel_initrd_compression_options:
                 options = "{} {}".format(options, opt)
         else:
-            options = _compressor_options[self.options.kernel_initrd_compression]
+            options = \
+                _compressor_options[self.options.kernel_initrd_compression]
 
         cmd = "{} {}".format(compressor, options)
         logger.info(
@@ -348,12 +349,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
 
         self.vanilla_initrd_snap = os.path.join(self.sourcedir,
-            initrd_snap_file_name
-        )
+                                                initrd_snap_file_name)
 
     def enable_cross_compilation(self):
         logger.info(
-            "Cross compiling kernel target {!r}".format(self.project.kernel_arch)
+            "Cross compiling kernel target {!r}".format(
+                self.project.kernel_arch)
         )
         super().enable_cross_compilation()
         # by enabling cross compilation, the kernel_arch and deb_arch
@@ -378,13 +379,16 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "modules_install",
             "INSTALL_MOD_PATH={}".format(self.installdir),
         ]
-        self.dtbs = ["{}.dtb".format(i) for i in self.options.kernel_device_trees]
+        self.dtbs = ["{}.dtb".format(i)
+                     for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif self.project.kernel_arch == "arm" or self.project.kernel_arch == "arm64":
+        elif (self.project.kernel_arch == "arm" or
+              self.project.kernel_arch == "arm64"):
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
-                ["dtbs_install", "INSTALL_DTBS_PATH={}/dtbs".format(self.installdir)]
+                ["dtbs_install",
+                 "INSTALL_DTBS_PATH={}/dtbs".format(self.installdir)]
             )
         self.make_install_targets.extend(self._get_fw_install_targets())
 
@@ -428,8 +432,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
                     "cat {0} | {1} -dc | cpio -id".format(
                         tmp_initrd_path, decompressor
                         ),
-                        shell=True,
-                        cwd=initrd_unpacked_path,
+                    shell=True,
+                    cwd=initrd_unpacked_path,
                 )
             except subprocess.CalledProcessError:
                 pass
@@ -482,7 +486,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
                     env=env
                 )
             except errors.SnapcraftPluginCommandError:
-                logger.warning("**** WARNING **** Cannot find module '{}', ignoring it!!!".format(module))
+                logger.warning("**** WARNING **** Cannot find module "
+                               "'{}', ignoring it!!!".format(module))
             else:
                 modprobe_outs.extend(modprobe_out.split(os.linesep))
 
@@ -509,11 +514,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 self._link_replace(src, dst)
             else:
                 logger.warning(
-                    "**** WARNING **** Cannot locate dependency '{}' for included modules!!! **** WARNING ****".format(src)
+                    "**** WARNING **** Cannot locate dependency "
+                    "'{}' for included modules!!!".format(src)
                 )
 
         if modprobe_outs:
-            for module_info in os.listdir(os.path.join(self.installdir,modules_path)):
+            for module_info in os.listdir(os.path.join(self.installdir,
+                                                       modules_path)):
                 module_info_path = os.path.join(modules_path, module_info)
                 src = os.path.join(self.installdir, module_info_path)
                 dst = os.path.join(initrd_unpacked_path, module_info_path)
@@ -523,7 +530,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         # update module dependencies
         subprocess.check_call(
-            "depmod -b {} {}".format(initrd_unpacked_path, self.kernel_release),
+            "depmod -b {} {}".format(initrd_unpacked_path,
+                                     self.kernel_release),
             shell=True,
             cwd=initrd_unpacked_path,
         )
@@ -577,11 +585,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
 
     def _get_build_arch_dir(self):
-        return os.path.join(self.builddir, "arch", self.project.kernel_arch, "boot")
+        return os.path.join(self.builddir, "arch",
+                            self.project.kernel_arch, "boot")
 
     def _copy_vmlinuz(self):
         kernel = "{}-{}".format(self.kernel_image_target, self.kernel_release)
-        src = os.path.join(self._get_build_arch_dir(), self.kernel_image_target)
+        src = os.path.join(self._get_build_arch_dir(),
+                           self.kernel_image_target)
         dst = os.path.join(self.installdir, kernel)
         if not os.path.exists(src):
             raise ValueError(
@@ -589,13 +599,15 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 "dir, expected {!r}".format(src)
             )
 
-        # if kernel already exists, replace it, we are probably re-runing build
+        # if kernel already exists, replace it, we are probably re-runing
+        # build
         self._link_replace(src, dst)
         self._link_replace(src, os.path.join(self.installdir, "kernel.img"))
 
     def _copy_system_map(self):
         src = os.path.join(self.builddir, "System.map")
-        dst = os.path.join(self.installdir, "System.map-{}".format(self.kernel_release))
+        dst = os.path.join(self.installdir,
+                           "System.map-{}".format(self.kernel_release))
         if not os.path.exists(src):
             raise ValueError(
                 "kernel build did not output a System.map in top level dir"
@@ -615,9 +627,11 @@ class KernelPlugin(kbuild.KBuildPlugin):
         for dtb in self.dtbs:
             found_dtbs = glob.glob(os.path.join(base_path, dtb))
             if not found_dtbs:
-                raise RuntimeError("No match for dtb {!r} was found".format(dtb))
+                raise RuntimeError("No match for dtb "
+                                   "{!r} was found".format(dtb))
             for f in found_dtbs:
-                # if dst already exists, clean it first, we are probably re-runing build
+                # if dst already exists, clean it first, we are probably
+                # re-runing build
                 dst = os.path.join(dtb_dir, os.path.basename(f))
                 self._link_replace(f, dst)
 
@@ -648,7 +662,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "we suggest you take a look at these:\n"
         )
         required_opts = (
-            required_generic + required_security + required_snappy + required_systemd
+            (required_generic + required_security + required_snappy +
+             required_systemd)
         )
         missing = []
 
@@ -784,15 +799,18 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         # upstream kernel installs under $INSTALL_MOD_PATH/lib/modules/
         # but snapd expects modules/ and firmware/
-        shutil.move(os.path.join(self.installdir, "lib", "modules"), self.installdir)
+        shutil.move(os.path.join(self.installdir, "lib", "modules"),
+                    self.installdir)
         # remove sym links modules/*/build and modules/*/source
         for d in ("build", "source"):
-            for f in glob.glob("{}/modules/*/{}".format(self.installdir, d), recursive=False):
+            for f in glob.glob("{}/modules/*/{}".format(self.installdir, d),
+                               recursive=False):
                 os.remove(f)
 
         if self.options.kernel_with_firmware:
             shutil.move(
-                os.path.join(self.installdir, "lib", "firmware"), self.installdir
+                os.path.join(self.installdir, "lib", "firmware"),
+                self.installdir
             )
         os.rmdir(os.path.join(self.installdir, "lib"))
         # install .config as config-$version
