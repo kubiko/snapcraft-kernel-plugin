@@ -303,6 +303,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.build_packages.append("kmod")
         # add compression tools
         self.build_packages.append("xz-utils")
+        # add (un)mkinitramfs
+        self.build_packages.append("initramfs-tools-core")
         # we cannot assume there is lsb_release, parse it manually
         with open("/etc/lsb-release") as lsb_file:
             for line in lsb_file.read().splitlines():
@@ -424,25 +426,15 @@ class KernelPlugin(kbuild.KBuildPlugin):
         )
         tmp_initrd_path = os.path.join(initrd_unpacked_snap, initrd_path)
 
-        decompressed = False
-        # Roll over valid decompression mechanisms until one works
-        for decompressor in ("xz", "gzip", "lz4"):
-            try:
-                subprocess.check_call(
-                    "cat {0} | {1} -dc | cpio -id".format(
-                        tmp_initrd_path, decompressor
-                        ),
-                    shell=True,
-                    cwd=initrd_unpacked_path,
-                )
-            except subprocess.CalledProcessError:
-                pass
-            else:
-                decompressed = True
-                break
-
-        if not decompressed:
-            raise RuntimeError("The initrd file type is unsupported")
+        # Uncompress initramfs
+        try:
+            subprocess.check_call(
+                "unmkinitramfs {} .".format(tmp_initrd_path),
+                shell=True,
+                cwd=initrd_unpacked_path,
+            )
+        except subprocess.CalledProcessError:
+            raise RuntimeError("unmkinitramfs cannot uncompress initramfs")
 
         return initrd_unpacked_path
 
@@ -454,7 +446,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
         )
 
-        initrd_unpacked_path = self._unpack_generic_initrd()
+        initrd_files_path = self._unpack_generic_initrd()
+        # For x86 we could have 'early' (microcode updates) and 'main'
+        # segments, we modify the latter.
+        initrd_main = os.path.join(initrd_files_path, 'main')
+        if os.path.isdir(initrd_main):
+            initrd_unpacked_path = initrd_main
+        else:
+            initrd_unpacked_path = initrd_files_path
         initrd_modules_dir = os.path.join(
             initrd_unpacked_path,
             "lib",
@@ -560,9 +559,21 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         initrd = "initrd.img-{}".format(self.kernel_release)
         initrd_path = os.path.join(self.installdir, initrd)
+
+        if os.path.exists(initrd_path):
+            os.remove(initrd_path)
+
+        initrd_early = os.path.join(initrd_files_path, 'early')
+        if os.path.isdir(initrd_early):
+            subprocess.check_call(
+                "find . | cpio --create --format=newc --owner=0:0 > "
+                "{}".format(initrd_path),
+                shell=True,
+                cwd=initrd_early)
+
         subprocess.check_call(
             "find . | cpio --create --format=newc --owner=0:0 | "
-            "{} > {}".format(self.compression_cmd, initrd_path),
+            "{} >> {}".format(self.compression_cmd, initrd_path),
             shell=True,
             cwd=initrd_unpacked_path,
         )
