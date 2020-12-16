@@ -558,7 +558,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
             shutil.copytree(overlay_src, initrd_unpacked_path)
 
-        initrd = "initrd-{}.img".format(self.kernel_release)
+        initrd = "initrd.img-{}".format(self.kernel_release)
         initrd_path = os.path.join(self.installdir, initrd)
         subprocess.check_call(
             "find . | cpio --create --format=newc --owner=0:0 | "
