@@ -84,11 +84,16 @@ The following initrd specific options are provided by this plugin:
       built before initrd part. During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-overlay}
       Default: none
+
     - kernel-initrd-core-base
       Optional override to specify target Ubuntu Core base, regardless if there
       is defined build-base in the top level of the snapcraft project.
       Supported values are same as for build-base: 'core(16)', 'core18',
       'core20'.
+
+    - kernel-build-efi-image
+      Optional, true if we want to create an EFI image, false otherwise (false
+      by default)
 """
 
 import glob
@@ -257,6 +262,11 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": ""
         }
 
+        schema["properties"]["kernel-build-efi-image"] = {
+            "type": "boolean",
+            "default": False
+        }
+
         return schema
 
     @classmethod
@@ -303,8 +313,10 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.build_packages.append("kmod")
         # add compression tools
         self.build_packages.append("xz-utils")
-        # add (un)mkinitramfs
+        # add unmkinitramfs
         self.build_packages.append("initramfs-tools-core")
+        # add efi stubs
+        self.build_packages.append("systemd")
         # we cannot assume there is lsb_release, parse it manually
         with open("/etc/lsb-release") as lsb_file:
             for line in lsb_file.read().splitlines():
@@ -764,6 +776,32 @@ class KernelPlugin(kbuild.KBuildPlugin):
             os.remove(dst)
         os.link(src, dst)
 
+    def _make_efi(self):
+        kernel_f = "{}-{}".format(self.kernel_image_target,
+                                  self.kernel_release)
+        kernel_p = os.path.join(self.installdir, kernel_f)
+        initrd_p = os.path.join(self.installdir, "initrd.img")
+        efi_img_p = os.path.join(self.installdir, "kernel.efi")
+        arch = {"amd64": "x64", "arm64": "aa64"}.get(self.project.deb_arch)
+        try:
+            subprocess.check_call(
+                [
+                    "objcopy",
+                    "--add-section",
+                    ".linux={}".format(kernel_p),
+                    "--change-section-vma",
+                    ".linux=0x40000",
+                    "--add-section",
+                    ".initrd={}".format(initrd_p),
+                    "--change-section-vma",
+                    ".initrd=0x3000000",
+                    "/usr/lib/systemd/boot/efi/linux{}.efi.stub".format(arch),
+                    efi_img_p,
+                ],
+            )
+        except subprocess.CalledProcessError:
+            raise RuntimeError("objcopy error while creating efi image")
+
     def pull(self):
         super().pull()
         logger.info("Using reference initrd: {}".format(self.snap_url))
@@ -807,6 +845,10 @@ class KernelPlugin(kbuild.KBuildPlugin):
         # build initrd
         self._generate_module_dep()
         self._make_initrd()
+        # create kernel.efi if requested
+        if self.options.kernel_build_efi_image:
+            logger.info("Building efi image")
+            self._make_efi()
 
         # upstream kernel installs under $INSTALL_MOD_PATH/lib/modules/
         # but snapd expects modules/ and firmware/
