@@ -94,6 +94,14 @@ The following initrd specific options are provided by this plugin:
     - kernel-build-efi-image
       Optional, true if we want to create an EFI image, false otherwise (false
       by default)
+
+    - kernel-compiler
+      Optional, define compiler to use, by default gcc compiler is used
+      Orher permited compilers: clang
+
+    - kernel-compiler-path
+      Optional, define the compiler path to be added to the PATH
+      Default value is empty
 """
 
 import glob
@@ -267,6 +275,16 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": False
         }
 
+        schema["properties"]["kernel-compiler"] = {
+            "type": "string",
+            "default": ""
+        }
+
+        schema["properties"]["kernel-compiler-path"] = {
+            "type": "string",
+            "default": ""
+        }
+
         return schema
 
     @classmethod
@@ -284,7 +302,9 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-initrd-flavour",
             "kernel-initrd-base-url",
             "kernel-initrd-overlay",
-            "kernel-initrd-core-base"
+            "kernel-initrd-core-base",
+            "kernel-compiler",
+            "kernel-compiler-path"
         ]
 
     @property
@@ -364,6 +384,19 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         self.vanilla_initrd_snap = os.path.join(self.sourcedir,
                                                 initrd_snap_file_name)
+
+
+        # if we use custom compiler, also include ${SNAPCRAFT_STAGE}/bin
+        # in the PATH
+        if self.options.kernel_compiler:
+            os.environ["PATH"] = "{}:{}".format(
+                os.path.join(self.project.stage_dir, "bin"),
+                os.environ.get("PATH", ""))
+
+        if self.options.kernel_compiler_path:
+            os.environ["PATH"] = "{}:{}".format(
+                self.options.kernel_compiler_path,
+                os.environ.get("PATH", ""))
 
     def enable_cross_compilation(self):
         logger.info(
@@ -826,6 +859,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
             shutil.rmtree(os.path.join(self.installdir, "modules"))
         if os.path.exists(os.path.join(self.installdir, "lib", "modules")):
             shutil.rmtree(os.path.join(self.installdir, "lib", "modules"))
+        # check if we gcc or another compiler
+        if self.options.kernel_compiler:
+            # at the moment only clang is supported as alternative, warn otherwise
+            if self.options.kernel_compiler != "clang":
+                logger.warning("Only other 'supported' compiler is clang")
+                logger.warning("hopefully you know what you are doing")
+            self.make_cmd.append("CC={}".format(self.options.kernel_compiler))
+
         super().build()
 
     def do_configure(self):
