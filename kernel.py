@@ -96,11 +96,18 @@ The following initrd specific options are provided by this plugin:
       by default)
 
     - kernel-compiler
+      (string; default:)
       Optional, define compiler to use, by default gcc compiler is used
       Orher permited compilers: clang
 
     - kernel-compiler-path
+      (string; default:)
       Optional, define the compiler path to be added to the PATH
+      Default value is empty
+
+    - kernel-compiler-parameters
+      (array of string)
+      Optional, define extra compiler parameters to be passed to the compiler
       Default value is empty
 """
 
@@ -285,6 +292,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": ""
         }
 
+        schema["properties"]["kernel-compiler-parameters"] = {
+            "type": "array",
+            "minitems": 1,
+            "uniqueItems": True,
+            "items": {"type": "string"},
+            "default": []
+        }
+
         return schema
 
     @classmethod
@@ -304,7 +319,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-initrd-overlay",
             "kernel-initrd-core-base",
             "kernel-compiler",
-            "kernel-compiler-path"
+            "kernel-compiler-path",
+            "kernel-compiler-parameters"
         ]
 
     @property
@@ -388,7 +404,10 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         # if we use custom compiler, also include ${SNAPCRAFT_STAGE}/bin
         # in the PATH
-        if self.options.kernel_compiler:
+        if (
+               self.options.kernel_compiler or
+               self.options.kernel_compiler_parameters
+           ):
             os.environ["PATH"] = "{}:{}".format(
                 os.path.join(self.project.stage_dir, "bin"),
                 os.environ.get("PATH", ""))
@@ -865,7 +884,10 @@ class KernelPlugin(kbuild.KBuildPlugin):
             if self.options.kernel_compiler != "clang":
                 logger.warning("Only other 'supported' compiler is clang")
                 logger.warning("hopefully you know what you are doing")
-            self.make_cmd.append("CC={}".format(self.options.kernel_compiler))
+            self.make_cmd.append("CC=\"{}\"".format(self.options.kernel_compiler))
+        if self.options.kernel_compiler_parameters:
+            for opt in self.options.kernel_compiler_parameters:
+                self.make_cmd.append("{}".format(opt))
 
         super().build()
 
