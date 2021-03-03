@@ -408,8 +408,9 @@ class KernelPlugin(kbuild.KBuildPlugin):
                self.options.kernel_compiler or
                self.options.kernel_compiler_parameters
            ):
-            os.environ["PATH"] = "{}:{}".format(
+            os.environ["PATH"] = "{}:{}:{}".format(
                 os.path.join(self.project.stage_dir, "bin"),
+                os.path.join(self.project.stage_dir, "usr/bin"),
                 os.environ.get("PATH", ""))
 
         if self.options.kernel_compiler_path:
