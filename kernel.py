@@ -100,9 +100,10 @@ The following initrd specific options are provided by this plugin:
       Optional, define compiler to use, by default gcc compiler is used
       Orher permited compilers: clang
 
-    - kernel-compiler-path
-      (string; default:)
-      Optional, define the compiler path to be added to the PATH
+    - kernel-compiler-paths
+      (array of strings)
+      Optional, define the compiler path to be added to the PATH.
+      Path is relative to the stage directory.
       Default value is empty
 
     - kernel-compiler-parameters
@@ -287,9 +288,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": ""
         }
 
-        schema["properties"]["kernel-compiler-path"] = {
-            "type": "string",
-            "default": ""
+        schema["properties"]["kernel-compiler-paths"] = {
+            "type": "array",
+            "minitems": 1,
+            "uniqueItems": True,
+            "items": {"type": "string"},
+            "default": []
         }
 
         schema["properties"]["kernel-compiler-parameters"] = {
@@ -319,7 +323,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-initrd-overlay",
             "kernel-initrd-core-base",
             "kernel-compiler",
-            "kernel-compiler-path",
+            "kernel-compiler-paths",
             "kernel-compiler-parameters"
         ]
 
@@ -413,10 +417,11 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 os.path.join(self.project.stage_dir, "usr/bin"),
                 os.environ.get("PATH", ""))
 
-        if self.options.kernel_compiler_path:
-            os.environ["PATH"] = "{}:{}".format(
-                self.options.kernel_compiler_path,
-                os.environ.get("PATH", ""))
+        if self.options.kernel_compiler_paths:
+            for p in self.options.kernel_compiler_paths:
+                os.environ["PATH"] = "{}:{}".format(
+                    os.path.join(self.project.stage_dir,p),
+                    os.environ.get("PATH", ""))
 
     def enable_cross_compilation(self):
         logger.info(
