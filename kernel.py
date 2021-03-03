@@ -115,11 +115,14 @@ The following initrd specific options are provided by this plugin:
 import glob
 import logging
 import os
+import shlex
 import shutil
 import subprocess
+from subprocess import CalledProcessError
 
 import snapcraft
 from snapcraft.plugins.v1 import kbuild
+from snapcraft.internal import common, errors
 from snapcraft.internal.indicators import (
      download_urllib_source,
 )
@@ -929,3 +932,43 @@ class KernelPlugin(kbuild.KBuildPlugin):
         config_path = os.path.join(self.installdir, config)
         dot_config_path = self.get_config_path()
         self._link_replace(dot_config_path, config_path)
+
+    # modify helper from default plugin
+    # Helpers
+    def run(self, cmd, cwd=None, **kwargs):
+        if not cwd:
+            cwd = self.builddir
+        cmd_string = " ".join([shlex.quote(c) for c in cmd])
+        logger.warning("cmd_string={}".format(cmd_string))
+        env = os.environ.copy()
+
+        if self.options.kernel_compiler_paths:
+            for p in self.options.kernel_compiler_paths:
+                env["PATH"] = "{}:{}".format(
+                    os.path.join(self.project.stage_dir,p),
+                    env.get("PATH", ""))
+
+        print(cmd_string)
+        os.makedirs(cwd, exist_ok=True)
+        try:
+            return common.run(cmd, env=env, cwd=cwd, **kwargs)
+        except CalledProcessError as process_error:
+            raise errors.SnapcraftPluginCommandError(
+                command=cmd,
+                part_name=self.name,
+                exit_code=process_error.returncode
+            ) from process_error
+
+    def do_remake_config(self):
+        # update config to include kconfig amendments using oldconfig
+        cmd = 'yes "" | {} oldconfig'.format(
+            " ".join([shlex.quote(c) for c in self.make_cmd])
+            )
+
+        env = os.environ.copy()
+        if self.options.kernel_compiler_paths:
+            for p in self.options.kernel_compiler_paths:
+                env["PATH"] = "{}:{}".format(
+                    os.path.join(self.project.stage_dir,p),
+                    env.get("PATH", ""))
+        subprocess.check_call(cmd, env=env, shell=True, cwd=self.builddir)
