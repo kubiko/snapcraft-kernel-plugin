@@ -405,24 +405,6 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.vanilla_initrd_snap = os.path.join(self.sourcedir,
                                                 initrd_snap_file_name)
 
-
-        # if we use custom compiler, also include ${SNAPCRAFT_STAGE}/bin
-        # in the PATH
-        if (
-               self.options.kernel_compiler or
-               self.options.kernel_compiler_parameters
-           ):
-            os.environ["PATH"] = "{}:{}:{}".format(
-                os.path.join(self.project.stage_dir, "bin"),
-                os.path.join(self.project.stage_dir, "usr/bin"),
-                os.environ.get("PATH", ""))
-
-        if self.options.kernel_compiler_paths:
-            for p in self.options.kernel_compiler_paths:
-                os.environ["PATH"] = "{}:{}".format(
-                    os.path.join(self.project.stage_dir,p),
-                    os.environ.get("PATH", ""))
-
     def enable_cross_compilation(self):
         logger.info(
             "Cross compiling kernel target {!r}".format(
