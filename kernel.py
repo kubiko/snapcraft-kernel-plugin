@@ -408,6 +408,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.vanilla_initrd_snap = os.path.join(self.sourcedir,
                                                 initrd_snap_file_name)
 
+        self.custom_path = ""
+        if self.options.kernel_compiler_paths:
+            for p in self.options.kernel_compiler_paths:
+                self.custom_path = "{}{}:".format(
+                    os.path.join(self.project.stage_dir,p),
+                    self.custom_path)
+
     def enable_cross_compilation(self):
         logger.info(
             "Cross compiling kernel target {!r}".format(
@@ -942,12 +949,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
         logger.warning("cmd_string={}".format(cmd_string))
         env = os.environ.copy()
 
-        if self.options.kernel_compiler_paths:
-            for p in self.options.kernel_compiler_paths:
-                env["PATH"] = "{}:{}".format(
-                    os.path.join(self.project.stage_dir,p),
-                    env.get("PATH", ""))
-
+        # check if there is custom path to be added
+        if self.custom_path:
+            # self.custom_path is terminated by ":" no need to add it here
+            env["PATH"] = "{}{}".format(
+                        self.custom_path,
+                        env.get("PATH", "")
+                    )
+        print("PATH: {}".format(env.get("PATH", "")))
         print(cmd_string)
         os.makedirs(cwd, exist_ok=True)
         try:
@@ -966,9 +975,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
 
         env = os.environ.copy()
-        if self.options.kernel_compiler_paths:
-            for p in self.options.kernel_compiler_paths:
-                env["PATH"] = "{}:{}".format(
-                    os.path.join(self.project.stage_dir,p),
-                    env.get("PATH", ""))
+        # check if there is custom path to be added
+        if self.custom_path:
+            # self.custom_path is terminated by ":" no need to add it here
+            env["PATH"] = "{}{}".format(
+                        self.custom_path,
+                        env.get("PATH", "")
+                    )
+
         subprocess.check_call(cmd, env=env, shell=True, cwd=self.builddir)
