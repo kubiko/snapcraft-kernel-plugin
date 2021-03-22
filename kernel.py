@@ -49,7 +49,7 @@ The following initrd specific options are provided by this plugin:
 
     - kernel-initrd-firmware:
       (array of string)
-      list of firmware files to include in the initrd; these need to be
+      list of firmware files to be included in the initrd; these need to be
       relative paths to stage directory.
 
     - kernel-initrd-compression:
@@ -78,11 +78,24 @@ The following initrd specific options are provided by this plugin:
     - kernel-initrd-overlay
       Optional overlay to be applied to built initrd
       This option is designed to provide easy way to apply initrd overlay for
-      cases as full disk encryption support, when device specific hooks need
-      to be added to the initrd.
+      cases modifies initrd scripts for pre uc20 initrds.
       Value is relative path, in stage directory. and related part needs to be
       built before initrd part. During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-overlay}
+      Default: none
+
+    - kernel-initrd-addons
+      (array of string)
+      Optional list of files to be added to the initrd.
+      Function is similar to kernel-initrd-overlay, only it works on per file
+      selection without need to have overlay in dedicated directory.
+      This option is designed to provide easy way to add additonal content
+      to initrd for cases like full disk encryption support, when device
+      specific hook needs to be added to the initrd.
+      Values are relative path from stage directory, so related part(s)
+      needs to be built before kernel part.
+      During build it will be expanded to
+      ${SNAPCRAFT_STAGE}/{initrd-addon}
       Default: none
 
     - kernel-initrd-core-base
@@ -276,6 +289,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "default": ""
         }
 
+        schema["properties"]["kernel-initrd-addons"] = {
+            "type": "array",
+            "minitems": 1,
+            "uniqueItems": True,
+            "items": {"type": "string"},
+            "default": [],
+        }
+
         schema["properties"]["kernel-initrd-core-base"] = {
             "type": "string",
             "default": ""
@@ -324,6 +345,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-initrd-flavour",
             "kernel-initrd-base-url",
             "kernel-initrd-overlay",
+            "kernel-initrd-addons",
             "kernel-initrd-core-base",
             "kernel-compiler",
             "kernel-compiler-paths",
@@ -625,6 +647,21 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 self.options.kernel_initrd_overlay
             )
             shutil.copytree(overlay_src, initrd_unpacked_path)
+
+        # apply overlay if defined
+        for addon in self.options.kernel_initrd_addons:
+            src = os.path.join(self.project.stage_dir, addon)
+            dst = os.path.dirname(os.path.join(initrd_unpacked_path, addon))
+            os.makedirs(dst, exist_ok=True)
+            logger.info("Copy overlay:{} -> {}".format(src, dst))
+            if os.path.isdir(src):
+                logger.info("Addon is dir")
+                shutil.copytree(src, dst)
+            else:
+                logger.info("Addon is file:[{}][{}]".format(src,dst))
+                # handle wild card cases
+                for a in glob.glob(src):
+                    shutil.copy(a, dst)
 
         initrd = "initrd.img-{}".format(self.kernel_release)
         initrd_path = os.path.join(self.installdir, initrd)
