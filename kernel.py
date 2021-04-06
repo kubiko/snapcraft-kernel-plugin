@@ -633,12 +633,22 @@ class KernelPlugin(kbuild.KBuildPlugin):
             src = os.path.join(self.installdir, firmware)
             if not os.path.exists(src):
                 src = os.path.join(self.project.stage_dir, firmware)
-            dst = os.path.join(initrd_unpacked_path, "lib", firmware)
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            dst = os.path.dirname(
+                os.path.join(
+                    initrd_unpacked_path,
+                    "lib",
+                    firmware
+                )
+            )
+            os.makedirs(dst, exist_ok=True)
             if os.path.isdir(src):
+                logger.info("Firmware is dir")
                 shutil.copytree(src, dst)
             else:
-                self._link_replace(src, dst)
+                # handle wild card cases
+                for a in glob.glob(src):
+                    logger.info("Adding firmware:[{}][{}]".format(a,dst))
+                    shutil.copy(a, dst)
 
         # apply overlay if defined
         if self.options.kernel_initrd_overlay:
