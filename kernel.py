@@ -470,6 +470,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.make_targets = [self.kernel_image_target, "modules"]
         self.make_install_targets = [
             "modules_install",
+            "INSTALL_MOD_STRIP=1",
             "INSTALL_MOD_PATH={}".format(self.installdir),
         ]
         self.dtbs = ["{}.dtb".format(i)
