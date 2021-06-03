@@ -39,6 +39,11 @@ The following kernel specific options are provided by this plugin:
       (array of string)
       list of device trees to build, the format is <device-tree-name>.dts.
 
+    - kernel-run-on:
+      (string; default: target arch)
+      Debian architecture where the snap will run. In the future it
+      should be possible to get this from the run-on field in snapcraft.yaml
+
 The following initrd specific options are provided by this plugin:
 
     - kernel-initrd-modules:
@@ -150,6 +155,13 @@ _INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
 
+_DEB_TO_KERNEL_ARCH = {
+    "arm64": "arm64",
+    "armhf": "arm",
+    "riscv64": "riscv64",
+    "x86_64": "x86"
+}
+
 default_kernel_image_target = {
     "amd64": "bzImage",
     "i386": "bzImage",
@@ -240,6 +252,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "uniqueItems": True,
             "items": {"type": "string"},
             "default": [],
+        }
+
+        schema["properties"]["kernel-run-on"] = {
+            "type": "string",
+            "default": "",
+            "enum": ["amd64", "i386", "armhf", "arm64", "powerpc", "ppc64el", "s390x"],
         }
 
         schema["required"] = ["source"]
@@ -338,6 +356,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-image-target",
             "kernel-with-firmware",
             "kernel-device-trees",
+            "kernel-run-on",
             "kernel-initrd-modules",
             "kernel-initrd-firmware",
             "kernel-initrd-compression",
@@ -370,6 +389,18 @@ class KernelPlugin(kbuild.KBuildPlugin):
         )
         return cmd
 
+    def _get_run_on_deb_arch(self):
+        if self.options.kernel_run_on:
+            return self.options.kernel_run_on
+        else:
+            return self.project.target_arch
+
+    def _get_run_on_kernel_arch(self):
+        if self.options.kernel_run_on:
+            return _DEB_TO_KERNEL_ARCH[self.options.kernel_run_on]
+        else:
+            return self.project.kernel_arch
+
     def __init__(self, name, options, project):
 
         super().__init__(name, options, project)
@@ -399,10 +430,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.kernel_release = ""
         self._setup_base(project._get_build_base())
 
-        if self.project.target_arch is not None:
-            self.initrd_arch = self.project.target_arch
-        else:
-            self.initrd_arch = self.project.kernel_arch
+        self.initrd_arch = self._get_run_on_deb_arch()
 
         if self.options.kernel_initrd_flavour:
             flavour = "-{}".format(self.options.kernel_initrd_flavour)
@@ -477,8 +505,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
                      for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif (self.project.kernel_arch == "arm" or
-              self.project.kernel_arch == "arm64"):
+        elif (self._get_run_on_deb_arch() == "armhf" or
+              self._get_run_on_deb_arch() == "arm64"):
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
                 ["dtbs_install",
@@ -714,7 +742,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     def _get_build_arch_dir(self):
         return os.path.join(self.builddir, "arch",
-                            self.project.kernel_arch, "boot")
+                            self._get_run_on_kernel_arch(), "boot")
 
     def _copy_vmlinuz(self):
         kernel = "{}-{}".format(self.kernel_image_target, self.kernel_release)
