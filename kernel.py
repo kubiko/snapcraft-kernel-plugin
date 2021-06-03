@@ -155,11 +155,25 @@ _INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
 
-_DEB_TO_KERNEL_ARCH = {
-    "arm64": "arm64",
-    "armhf": "arm",
-    "riscv64": "riscv64",
-    "x86_64": "x86"
+# kernel: kernel arch equivalent
+# cross-compiler-prefix: gcc cross compiler prefix
+_DEB_ARCH_TRANSLATE = {
+    "arm64": {
+        "kernel": "arm64",
+        "cross-compiler-prefix": "aarch64-linux-gnu-"
+    },
+    "armhf": {
+        "kernel": "arm",
+        "cross-compiler-prefix": "arm-linux-gnueabihf-"
+    },
+    "riscv64": {
+        "kernel": "riscv64",
+        "cross-compiler-prefix": "riscv64-linux-gnu-"
+    },
+    "x86_64": {
+        "kernel": "x86",
+        "cross-compiler-prefix": "x86_64-linux-gnu-"
+    }
 }
 
 default_kernel_image_target = {
@@ -397,13 +411,23 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     def _get_run_on_kernel_arch(self):
         if self.options.kernel_run_on:
-            return _DEB_TO_KERNEL_ARCH[self.options.kernel_run_on]
+            return _DEB_ARCH_TRANSLATE[self.options.kernel_run_on]["kernel"]
         else:
             return self.project.kernel_arch
+
+    def _get_run_on_compiler_prefix(self):
+        if self.options.kernel_run_on:
+            return _DEB_ARCH_TRANSLATE[self.options.kernel_run_on][
+                "cross-compiler-prefix"]
+        else:
+            return ""
 
     def __init__(self, name, options, project):
 
         super().__init__(name, options, project)
+
+        if self.options.kernel_run_on:
+            self.set_cross_compilation_vars()
 
         # We need to be able to shell out to modprobe
         self.build_packages.append("kmod")
@@ -465,23 +489,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
                     os.path.join(self.project.stage_dir,p),
                     self.custom_path)
 
-    def enable_cross_compilation(self):
+    def set_cross_compilation_vars(self):
         logger.info(
-            "Cross compiling kernel target {!r}".format(
-                self.project.kernel_arch)
+            "Cross compiling for kernel target {!r}".format(
+                self._get_run_on_kernel_arch())
         )
-
-        self.make_cmd.append("ARCH={}".format(self.project.kernel_arch))
-        if os.environ.get("CROSS_COMPILE"):
-            toolchain = os.environ["CROSS_COMPILE"]
-        else:
-            toolchain = self.project.cross_compiler_prefix
-        self.make_cmd.append("CROSS_COMPILE={}".format(toolchain))
-
-        # by enabling cross compilation, the kernel_arch and deb_arch
-        # from the project options have effectively changed so we reset
-        # kernel targets.
-        self._set_kernel_targets()
+        self.make_cmd.append("ARCH={}".format(self._get_run_on_kernel_arch()))
+        self.make_cmd.append("CROSS_COMPILE={}".
+                             format(self._get_run_on_compiler_prefix()))
 
     def _set_kernel_targets(self):
         if not self.options.kernel_image_target:
