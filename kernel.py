@@ -144,7 +144,6 @@ from snapcraft.internal import common, errors
 from snapcraft.internal.indicators import (
      download_urllib_source,
 )
-from snapcraft.internal import errors
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +270,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
         schema["properties"]["kernel-run-on"] = {
             "type": "string",
             "default": "",
-            "enum": ["amd64", "i386", "armhf", "arm64", "powerpc", "ppc64el", "s390x"],
+            "enum": ["amd64", "i386", "armhf", "arm64",
+                     "powerpc", "ppc64el", "s390x"],
         }
 
         schema["required"] = ["source"]
@@ -486,7 +486,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         if self.options.kernel_compiler_paths:
             for p in self.options.kernel_compiler_paths:
                 self.custom_path = "{}{}:".format(
-                    os.path.join(self.project.stage_dir,p),
+                    os.path.join(self.project.stage_dir, p),
                     self.custom_path)
 
     def set_cross_compilation_vars(self):
@@ -691,7 +691,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             else:
                 # handle wild card cases
                 for a in glob.glob(src):
-                    logger.info("Adding firmware:[{}][{}]".format(a,dst))
+                    logger.info("Adding firmware:[{}][{}]".format(a, dst))
                     shutil.copy(a, dst)
 
         # apply overlay if defined
@@ -712,7 +712,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 logger.info("Addon is dir")
                 shutil.copytree(src, dst)
             else:
-                logger.info("Addon is file:[{}][{}]".format(src,dst))
+                logger.info("Addon is file:[{}][{}]".format(src, dst))
                 # handle wild card cases
                 for a in glob.glob(src):
                     shutil.copy(a, dst)
@@ -976,11 +976,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             shutil.rmtree(os.path.join(self.installdir, "lib", "modules"))
         # check if we gcc or another compiler
         if self.options.kernel_compiler:
-            # at the moment only clang is supported as alternative, warn otherwise
+            # atm only clang is supported as alternative, warn otherwise
             if self.options.kernel_compiler != "clang":
                 logger.warning("Only other 'supported' compiler is clang")
                 logger.warning("hopefully you know what you are doing")
-            self.make_cmd.append("CC=\"{}\"".format(self.options.kernel_compiler))
+            self.make_cmd.append("CC=\"{}\"".format(
+                self.options.kernel_compiler))
         if self.options.kernel_compiler_parameters:
             for opt in self.options.kernel_compiler_parameters:
                 self.make_cmd.append("{}".format(opt))
