@@ -39,6 +39,11 @@ The following kernel specific options are provided by this plugin:
       (array of string)
       list of device trees to build, the format is <device-tree-name>.dts.
 
+    - kernel-run-on:
+      (string; default: target arch)
+      Debian architecture where the snap will run. In the future it
+      should be possible to get this from the run-on field in snapcraft.yaml
+
 The following initrd specific options are provided by this plugin:
 
     - kernel-initrd-modules:
@@ -139,7 +144,6 @@ from snapcraft.internal import common, errors
 from snapcraft.internal.indicators import (
      download_urllib_source,
 )
-from snapcraft.internal import errors
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +153,27 @@ _INITRD_BASE_URL = "https://people.canonical.com/~okubik/uc-initrds"
 _INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
+
+# kernel: kernel arch equivalent
+# cross-compiler-prefix: gcc cross compiler prefix
+_DEB_ARCH_TRANSLATE = {
+    "arm64": {
+        "kernel": "arm64",
+        "cross-compiler-prefix": "aarch64-linux-gnu-"
+    },
+    "armhf": {
+        "kernel": "arm",
+        "cross-compiler-prefix": "arm-linux-gnueabihf-"
+    },
+    "riscv64": {
+        "kernel": "riscv64",
+        "cross-compiler-prefix": "riscv64-linux-gnu-"
+    },
+    "x86_64": {
+        "kernel": "x86",
+        "cross-compiler-prefix": "x86_64-linux-gnu-"
+    }
+}
 
 default_kernel_image_target = {
     "amd64": "bzImage",
@@ -240,6 +265,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "uniqueItems": True,
             "items": {"type": "string"},
             "default": [],
+        }
+
+        schema["properties"]["kernel-run-on"] = {
+            "type": "string",
+            "default": "",
+            "enum": ["amd64", "i386", "armhf", "arm64",
+                     "powerpc", "ppc64el", "s390x"],
         }
 
         schema["required"] = ["source"]
@@ -338,6 +370,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-image-target",
             "kernel-with-firmware",
             "kernel-device-trees",
+            "kernel-run-on",
             "kernel-initrd-modules",
             "kernel-initrd-firmware",
             "kernel-initrd-compression",
@@ -370,9 +403,31 @@ class KernelPlugin(kbuild.KBuildPlugin):
         )
         return cmd
 
+    def _get_run_on_deb_arch(self):
+        if self.options.kernel_run_on:
+            return self.options.kernel_run_on
+        else:
+            return self.project.target_arch
+
+    def _get_run_on_kernel_arch(self):
+        if self.options.kernel_run_on:
+            return _DEB_ARCH_TRANSLATE[self.options.kernel_run_on]["kernel"]
+        else:
+            return self.project.kernel_arch
+
+    def _get_run_on_compiler_prefix(self):
+        if self.options.kernel_run_on:
+            return _DEB_ARCH_TRANSLATE[self.options.kernel_run_on][
+                "cross-compiler-prefix"]
+        else:
+            return ""
+
     def __init__(self, name, options, project):
 
         super().__init__(name, options, project)
+
+        if self.options.kernel_run_on:
+            self.set_cross_compilation_vars()
 
         # We need to be able to shell out to modprobe
         self.build_packages.append("kmod")
@@ -399,10 +454,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.kernel_release = ""
         self._setup_base(project._get_build_base())
 
-        if self.project.target_arch is not None:
-            self.initrd_arch = self.project.target_arch
-        else:
-            self.initrd_arch = self.project.kernel_arch
+        self.initrd_arch = self._get_run_on_deb_arch()
 
         if self.options.kernel_initrd_flavour:
             flavour = "-{}".format(self.options.kernel_initrd_flavour)
@@ -434,26 +486,17 @@ class KernelPlugin(kbuild.KBuildPlugin):
         if self.options.kernel_compiler_paths:
             for p in self.options.kernel_compiler_paths:
                 self.custom_path = "{}{}:".format(
-                    os.path.join(self.project.stage_dir,p),
+                    os.path.join(self.project.stage_dir, p),
                     self.custom_path)
 
-    def enable_cross_compilation(self):
+    def set_cross_compilation_vars(self):
         logger.info(
-            "Cross compiling kernel target {!r}".format(
-                self.project.kernel_arch)
+            "Cross compiling for kernel target {!r}".format(
+                self._get_run_on_kernel_arch())
         )
-
-        self.make_cmd.append("ARCH={}".format(self.project.kernel_arch))
-        if os.environ.get("CROSS_COMPILE"):
-            toolchain = os.environ["CROSS_COMPILE"]
-        else:
-            toolchain = self.project.cross_compiler_prefix
-        self.make_cmd.append("CROSS_COMPILE={}".format(toolchain))
-
-        # by enabling cross compilation, the kernel_arch and deb_arch
-        # from the project options have effectively changed so we reset
-        # kernel targets.
-        self._set_kernel_targets()
+        self.make_cmd.append("ARCH={}".format(self._get_run_on_kernel_arch()))
+        self.make_cmd.append("CROSS_COMPILE={}".
+                             format(self._get_run_on_compiler_prefix()))
 
     def _set_kernel_targets(self):
         if not self.options.kernel_image_target:
@@ -477,8 +520,8 @@ class KernelPlugin(kbuild.KBuildPlugin):
                      for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif (self.project.kernel_arch == "arm" or
-              self.project.kernel_arch == "arm64"):
+        elif (self._get_run_on_deb_arch() == "armhf" or
+              self._get_run_on_deb_arch() == "arm64"):
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
                 ["dtbs_install",
@@ -648,7 +691,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             else:
                 # handle wild card cases
                 for a in glob.glob(src):
-                    logger.info("Adding firmware:[{}][{}]".format(a,dst))
+                    logger.info("Adding firmware:[{}][{}]".format(a, dst))
                     shutil.copy(a, dst)
 
         # apply overlay if defined
@@ -669,7 +712,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 logger.info("Addon is dir")
                 shutil.copytree(src, dst)
             else:
-                logger.info("Addon is file:[{}][{}]".format(src,dst))
+                logger.info("Addon is file:[{}][{}]".format(src, dst))
                 # handle wild card cases
                 for a in glob.glob(src):
                     shutil.copy(a, dst)
@@ -714,7 +757,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     def _get_build_arch_dir(self):
         return os.path.join(self.builddir, "arch",
-                            self.project.kernel_arch, "boot")
+                            self._get_run_on_kernel_arch(), "boot")
 
     def _copy_vmlinuz(self):
         kernel = "{}-{}".format(self.kernel_image_target, self.kernel_release)
@@ -933,11 +976,12 @@ class KernelPlugin(kbuild.KBuildPlugin):
             shutil.rmtree(os.path.join(self.installdir, "lib", "modules"))
         # check if we gcc or another compiler
         if self.options.kernel_compiler:
-            # at the moment only clang is supported as alternative, warn otherwise
+            # atm only clang is supported as alternative, warn otherwise
             if self.options.kernel_compiler != "clang":
                 logger.warning("Only other 'supported' compiler is clang")
                 logger.warning("hopefully you know what you are doing")
-            self.make_cmd.append("CC=\"{}\"".format(self.options.kernel_compiler))
+            self.make_cmd.append("CC=\"{}\"".format(
+                self.options.kernel_compiler))
         if self.options.kernel_compiler_parameters:
             for opt in self.options.kernel_compiler_parameters:
                 self.make_cmd.append("{}".format(opt))
