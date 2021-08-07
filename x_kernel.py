@@ -147,6 +147,7 @@ import logging
 import os
 import sys
 
+from snapcraft import ProjectOptions
 from typing import Any, Dict, List, Set
 
 from snapcraft.plugins.v2 import PluginV2
@@ -399,7 +400,21 @@ class PluginImpl(PluginV2):
                                                 initrd_snap_file_name)
 
     def _get_target_architecture(self) -> None:
-        self.target_arch = os.getenv("SNAPCRAFT_TARGET_ARCH")
+        # self.target_arch = os.getenv("SNAPCRAFT_TARGET_ARCH")
+        # TODO: get better more reliable way to detect target arch
+        # as work around check if we are cross building, to know what is
+        # target arch
+        self.target_arch = None
+        for arg in sys.argv:
+            if arg.startswith("--target-arch="):
+                self.target_arch = arg.split("=")[1]
+
+        if self.target_arch is None:
+            # TDDO: there is bug in snapcraft, use uname
+            # use ProjectOptions().deb_arch instead
+            # self.target_arch = os.getenv("SNAP_ARCH")
+            self.target_arch = ProjectOptions().deb_arch
+
         click.echo("Target architecture: {}".format(self.target_arch))
 
     def _get_kernel_architecture(self) -> None:
