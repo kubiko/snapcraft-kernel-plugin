@@ -1,4 +1,4 @@
-# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # Copyright (C) 2016-2018,2020 Canonical Ltd
 #
@@ -79,17 +79,17 @@ import snapcraft
 from snapcraft.plugins.v1 import PluginV1
 from os import listdir
 from snapcraft.internal.indicators import (
-     download_urllib_source,
+    download_urllib_source,
 )
 from snapcraft.internal import errors
 from snapcraft.internal.errors import SnapcraftPluginCommandError
 
 logger = logging.getLogger(__name__)
 
-_compression_command = {"gz": "gzip", "lz4":"lz4", "xz": "xz"}
-_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7" }
+_compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz"}
+_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7"}
 _INITRD_BASE_URL = "https://people.canonical.com/~okubik/uc-initrds"
-_INITRD_URL  = "{base_url}/{snap_name}"
+_INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
 
@@ -131,25 +131,13 @@ class InitrdPlugin(PluginV1):
             "default": [],
         }
 
-        schema["properties"]["initrd-flavour"] = {
-            "type": "string",
-            "default": ""
-        }
+        schema["properties"]["initrd-flavour"] = {"type": "string", "default": ""}
 
-        schema["properties"]["initrd-base-url"] = {
-            "type": "string",
-            "default": ""
-        }
+        schema["properties"]["initrd-base-url"] = {"type": "string", "default": ""}
 
-        schema["properties"]["initrd-overlay"] = {
-            "type": "string",
-            "default": ""
-        }
+        schema["properties"]["initrd-overlay"] = {"type": "string", "default": ""}
 
-        schema["properties"]["initrd-core-base"] = {
-            "type": "string",
-            "default": ""
-        }
+        schema["properties"]["initrd-core-base"] = {"type": "string", "default": ""}
 
         return schema
 
@@ -165,7 +153,7 @@ class InitrdPlugin(PluginV1):
             "initrd-flavour",
             "initrd-base-url",
             "initrd-overlay",
-            "initrd-core-base"
+            "initrd-core-base",
         ]
 
     @property
@@ -179,9 +167,7 @@ class InitrdPlugin(PluginV1):
             options = _compressor_options[self.options.initrd_compression]
 
         cmd = "{} {}".format(compressor, options)
-        logger.info(
-            "Using initrd compressions command: {!r}".format(cmd)
-        )
+        logger.info("Using initrd compressions command: {!r}".format(cmd))
         return cmd
 
     def __init__(self, name, options, project):
@@ -222,29 +208,22 @@ class InitrdPlugin(PluginV1):
             snap_name=_INITRD_SNAP_NAME,
             series=self.uc_series,
             flavour=flavour,
-            architecture=self.initrd_arch
+            architecture=self.initrd_arch,
         )
         if self.options.initrd_base_url:
             self.snap_url = _INITRD_URL.format(
-                base_url=self.options.initrd_base_url,
-                snap_name=initrd_snap_file_name
+                base_url=self.options.initrd_base_url, snap_name=initrd_snap_file_name
             )
         else:
             self.snap_url = _INITRD_URL.format(
-                base_url=_INITRD_BASE_URL,
-                snap_name=initrd_snap_file_name
+                base_url=_INITRD_BASE_URL, snap_name=initrd_snap_file_name
             )
 
-        self.vanilla_initrd_snap = os.path.join(self.sourcedir,
-            initrd_snap_file_name
-        )
+        self.vanilla_initrd_snap = os.path.join(self.sourcedir, initrd_snap_file_name)
 
     def enable_cross_compilation(self):
-        logger.info(
-			"Cross compiling initrd to {!r}".format(self.project.kernel_arch)
-        )
+        logger.info("Cross compiling initrd to {!r}".format(self.project.kernel_arch))
         pass
-
 
     def _unpack_generic_initrd(self):
         initrd_path = os.path.join("initrd.img")
@@ -261,7 +240,7 @@ class InitrdPlugin(PluginV1):
                 "-f",
                 "-d",
                 initrd_unpacked_snap,
-                self.vanilla_initrd_snap
+                self.vanilla_initrd_snap,
             ],
             cwd=self.builddir,
         )
@@ -274,9 +253,9 @@ class InitrdPlugin(PluginV1):
                 subprocess.check_call(
                     "cat {0} | {1} -dc | cpio -id".format(
                         tmp_initrd_path, decompressor
-                        ),
-                        shell=True,
-                        cwd=initrd_unpacked_path,
+                    ),
+                    shell=True,
+                    cwd=initrd_unpacked_path,
                 )
             except subprocess.CalledProcessError:
                 pass
@@ -299,10 +278,7 @@ class InitrdPlugin(PluginV1):
 
         initrd_unpacked_path = self._unpack_generic_initrd()
         initrd_modules_dir = os.path.join(
-            initrd_unpacked_path,
-            "lib",
-            "modules",
-            self.kernel_release
+            initrd_unpacked_path, "lib", "modules", self.kernel_release
         )
         os.makedirs(initrd_modules_dir)
 
@@ -326,10 +302,14 @@ class InitrdPlugin(PluginV1):
                         self.kernel_release,
                         module,
                     ],
-                    env=env
+                    env=env,
                 )
             except errors.SnapcraftPluginCommandError:
-                logger.warning("**** WARNING **** Cannot find module '{}', ignoring it!!!".format(module))
+                logger.warning(
+                    "**** WARNING **** Cannot find module '{}', ignoring it!!!".format(
+                        module
+                    )
+                )
             else:
                 modprobe_outs.extend(modprobe_out.split(os.linesep))
 
@@ -339,28 +319,26 @@ class InitrdPlugin(PluginV1):
             type = module_info.split()[0]
             src = module_info.split()[1]
             if type == "builtin":
-                logger.info(
-                    "Module '{}' is built in, ignoring it".format(src)
-                )
+                logger.info("Module '{}' is built in, ignoring it".format(src))
                 continue
 
             dst = os.path.join(
-                initrd_unpacked_path,
-                os.path.relpath(
-                    src,
-                    self.project.stage_dir
-                )
+                initrd_unpacked_path, os.path.relpath(src, self.project.stage_dir)
             )
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             if os.path.isfile(src):
                 self._link_replace(src, dst)
             else:
                 logger.warning(
-                    "**** WARNING **** Cannot locate dependency '{}' for included modules!!! **** WARNING ****".format(src)
+                    "**** WARNING **** Cannot locate dependency '{}' for included modules!!! **** WARNING ****".format(
+                        src
+                    )
                 )
 
         if modprobe_outs:
-            for module_info in os.listdir(os.path.join(self.project.stage_dir,modules_path)):
+            for module_info in os.listdir(
+                os.path.join(self.project.stage_dir, modules_path)
+            ):
                 module_info_path = os.path.join(modules_path, module_info)
                 src = os.path.join(self.project.stage_dir, module_info_path)
                 dst = os.path.join(initrd_unpacked_path, module_info_path)
@@ -392,8 +370,7 @@ class InitrdPlugin(PluginV1):
         # apply overlay if defined
         if self.options.initrd_overlay:
             overlay_src = os.path.join(
-                self.project.stage_dir,
-                self.options.initrd_overlay
+                self.project.stage_dir, self.options.initrd_overlay
             )
             shutil.copytree(overlay_src, initrd_unpacked_path)
 
@@ -409,12 +386,10 @@ class InitrdPlugin(PluginV1):
         self._link_replace(initrd_path, unversioned_initrd_path)
 
     def _parse_kernel_release(self):
-        modules_path = os.path.join(
-            self.project.stage_dir, "modules"
-        )
+        modules_path = os.path.join(self.project.stage_dir, "modules")
 
         for f in listdir(modules_path):
-            self.kernel_release = f[f.find("-")+1:]
+            self.kernel_release = f[f.find("-") + 1 :]
 
         if not self.kernel_release:
             raise ValueError(
@@ -439,7 +414,6 @@ class InitrdPlugin(PluginV1):
                     elif val == "M":
                         modules.append(opt)
         return builtin, modules
-
 
     def _do_check_initrd(self, builtin, modules):
         # check all required_boot[] items are either builtin or part of initrd
@@ -471,18 +445,17 @@ class InitrdPlugin(PluginV1):
 
     def _generate_module_dep(self):
         self.run(
-                [
-                    "depmod",
-                    "-b",
-                    self.project.stage_dir,
-                    "-F",
-                    os.path.join(
-                        self.project.stage_dir,
-                        "System.map-{}".format(self.kernel_release)
-                    ),
-                    "-w",
-                    self.kernel_release,
-                ]
+            [
+                "depmod",
+                "-b",
+                self.project.stage_dir,
+                "-F",
+                os.path.join(
+                    self.project.stage_dir, "System.map-{}".format(self.kernel_release)
+                ),
+                "-w",
+                self.kernel_release,
+            ]
         )
 
     def _setup_base(self, base):
@@ -521,16 +494,13 @@ class InitrdPlugin(PluginV1):
                 risk="stable",
                 track=self.uc_series,
                 download_path=self.vanilla_initrd_snap,
-                arch=self.initrd_arch
+                arch=self.initrd_arch,
             )
 
     def do_configure(self):
         builtin, modules = self._do_parse_config(
             os.path.join(
-                self.project.stage_dir,
-                "config-{}".format(
-                    self.kernel_release
-                )
+                self.project.stage_dir, "config-{}".format(self.kernel_release)
             )
         )
         self._do_check_initrd(builtin, modules)
