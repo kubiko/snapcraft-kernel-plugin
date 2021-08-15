@@ -137,7 +137,7 @@ import snapcraft
 from snapcraft.plugins.v1 import kbuild
 from snapcraft.internal import common, errors
 from snapcraft.internal.indicators import (
-     download_urllib_source,
+    download_urllib_source,
 )
 from snapcraft.internal import errors
 
@@ -276,17 +276,17 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         schema["properties"]["kernel-initrd-flavour"] = {
             "type": "string",
-            "default": ""
+            "default": "",
         }
 
         schema["properties"]["kernel-initrd-base-url"] = {
             "type": "string",
-            "default": ""
+            "default": "",
         }
 
         schema["properties"]["kernel-initrd-overlay"] = {
             "type": "string",
-            "default": ""
+            "default": "",
         }
 
         schema["properties"]["kernel-initrd-addons"] = {
@@ -299,25 +299,22 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         schema["properties"]["kernel-initrd-core-base"] = {
             "type": "string",
-            "default": ""
+            "default": "",
         }
 
         schema["properties"]["kernel-build-efi-image"] = {
             "type": "boolean",
-            "default": False
+            "default": False,
         }
 
-        schema["properties"]["kernel-compiler"] = {
-            "type": "string",
-            "default": ""
-        }
+        schema["properties"]["kernel-compiler"] = {"type": "string", "default": ""}
 
         schema["properties"]["kernel-compiler-paths"] = {
             "type": "array",
             "minitems": 1,
             "uniqueItems": True,
             "items": {"type": "string"},
-            "default": []
+            "default": [],
         }
 
         schema["properties"]["kernel-compiler-parameters"] = {
@@ -325,7 +322,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "minitems": 1,
             "uniqueItems": True,
             "items": {"type": "string"},
-            "default": []
+            "default": [],
         }
 
         return schema
@@ -349,25 +346,21 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "kernel-initrd-core-base",
             "kernel-compiler",
             "kernel-compiler-paths",
-            "kernel-compiler-parameters"
+            "kernel-compiler-parameters",
         ]
 
     @property
     def compression_cmd(self):
-        compressor = \
-            _compression_command[self.options.kernel_initrd_compression]
+        compressor = _compression_command[self.options.kernel_initrd_compression]
         options = ""
         if self.options.kernel_initrd_compression_options:
             for opt in self.options.kernel_initrd_compression_options:
                 options = "{} {}".format(options, opt)
         else:
-            options = \
-                _compressor_options[self.options.kernel_initrd_compression]
+            options = _compressor_options[self.options.kernel_initrd_compression]
 
         cmd = "{} {}".format(compressor, options)
-        logger.info(
-            "Using initrd compressions command: {!r}".format(cmd)
-        )
+        logger.info("Using initrd compressions command: {!r}".format(cmd))
         return cmd
 
     def __init__(self, name, options, project):
@@ -414,33 +407,30 @@ class KernelPlugin(kbuild.KBuildPlugin):
             snap_name=_INITRD_SNAP_NAME,
             series=self.uc_series,
             flavour=flavour,
-            architecture=self.initrd_arch
+            architecture=self.initrd_arch,
         )
         if self.options.kernel_initrd_base_url:
             self.snap_url = _INITRD_URL.format(
                 base_url=self.options.kernel_initrd_base_url,
-                snap_name=initrd_snap_file_name
+                snap_name=initrd_snap_file_name,
             )
         else:
             self.snap_url = _INITRD_URL.format(
-                base_url=_INITRD_BASE_URL,
-                snap_name=initrd_snap_file_name
+                base_url=_INITRD_BASE_URL, snap_name=initrd_snap_file_name
             )
 
-        self.vanilla_initrd_snap = os.path.join(self.sourcedir,
-                                                initrd_snap_file_name)
+        self.vanilla_initrd_snap = os.path.join(self.sourcedir, initrd_snap_file_name)
 
         self.custom_path = ""
         if self.options.kernel_compiler_paths:
             for p in self.options.kernel_compiler_paths:
                 self.custom_path = "{}{}:".format(
-                    os.path.join(self.project.stage_dir,p),
-                    self.custom_path)
+                    os.path.join(self.project.stage_dir, p), self.custom_path
+                )
 
     def enable_cross_compilation(self):
         logger.info(
-            "Cross compiling kernel target {!r}".format(
-                self.project.kernel_arch)
+            "Cross compiling kernel target {!r}".format(self.project.kernel_arch)
         )
 
         self.make_cmd.append("ARCH={}".format(self.project.kernel_arch))
@@ -473,16 +463,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "INSTALL_MOD_STRIP=1",
             "INSTALL_MOD_PATH={}".format(self.installdir),
         ]
-        self.dtbs = ["{}.dtb".format(i)
-                     for i in self.options.kernel_device_trees]
+        self.dtbs = ["{}.dtb".format(i) for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif (self.project.kernel_arch == "arm" or
-              self.project.kernel_arch == "arm64"):
+        elif self.project.kernel_arch == "arm" or self.project.kernel_arch == "arm64":
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
-                ["dtbs_install",
-                 "INSTALL_DTBS_PATH={}/dtbs".format(self.installdir)]
+                ["dtbs_install", "INSTALL_DTBS_PATH={}/dtbs".format(self.installdir)]
             )
         self.make_install_targets.extend(self._get_fw_install_targets())
 
@@ -512,7 +499,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 "-f",
                 "-d",
                 initrd_unpacked_snap,
-                self.vanilla_initrd_snap
+                self.vanilla_initrd_snap,
             ],
             cwd=self.builddir,
         )
@@ -541,16 +528,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
         initrd_files_path = self._unpack_generic_initrd()
         # For x86 we could have 'early' (microcode updates) and 'main'
         # segments, we modify the latter.
-        initrd_main = os.path.join(initrd_files_path, 'main')
+        initrd_main = os.path.join(initrd_files_path, "main")
         if os.path.isdir(initrd_main):
             initrd_unpacked_path = initrd_main
         else:
             initrd_unpacked_path = initrd_files_path
         initrd_modules_dir = os.path.join(
-            initrd_unpacked_path,
-            "lib",
-            "modules",
-            self.kernel_release
+            initrd_unpacked_path, "lib", "modules", self.kernel_release
         )
         os.makedirs(initrd_modules_dir)
 
@@ -574,11 +558,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
                         self.kernel_release,
                         module,
                     ],
-                    env=env
+                    env=env,
                 )
             except errors.SnapcraftPluginCommandError:
-                logger.warning("**** WARNING **** Cannot find module "
-                               "'{}', ignoring it!!!".format(module))
+                logger.warning(
+                    "**** WARNING **** Cannot find module "
+                    "'{}', ignoring it!!!".format(module)
+                )
             else:
                 modprobe_outs.extend(modprobe_out.split(os.linesep))
 
@@ -588,17 +574,11 @@ class KernelPlugin(kbuild.KBuildPlugin):
             type = module_info.split()[0]
             src = module_info.split()[1]
             if type == "builtin":
-                logger.info(
-                    "Module '{}' is built in, ignoring it".format(src)
-                )
+                logger.info("Module '{}' is built in, ignoring it".format(src))
                 continue
 
             dst = os.path.join(
-                initrd_unpacked_path,
-                os.path.relpath(
-                    src,
-                    self.installdir
-                )
+                initrd_unpacked_path, os.path.relpath(src, self.installdir)
             )
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             if os.path.isfile(src):
@@ -610,8 +590,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 )
 
         if modprobe_outs:
-            for module_info in os.listdir(os.path.join(self.installdir,
-                                                       modules_path)):
+            for module_info in os.listdir(os.path.join(self.installdir, modules_path)):
                 module_info_path = os.path.join(modules_path, module_info)
                 src = os.path.join(self.installdir, module_info_path)
                 dst = os.path.join(initrd_unpacked_path, module_info_path)
@@ -621,8 +600,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         # update module dependencies
         subprocess.check_call(
-            "depmod -b {} {}".format(initrd_unpacked_path,
-                                     self.kernel_release),
+            "depmod -b {} {}".format(initrd_unpacked_path, self.kernel_release),
             shell=True,
             cwd=initrd_unpacked_path,
         )
@@ -634,13 +612,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             src = os.path.join(self.installdir, firmware)
             if not os.path.exists(src):
                 src = os.path.join(self.project.stage_dir, firmware)
-            dst = os.path.dirname(
-                os.path.join(
-                    initrd_unpacked_path,
-                    "lib",
-                    firmware
-                )
-            )
+            dst = os.path.dirname(os.path.join(initrd_unpacked_path, "lib", firmware))
             os.makedirs(dst, exist_ok=True)
             if os.path.isdir(src):
                 logger.info("Firmware is dir")
@@ -648,14 +620,13 @@ class KernelPlugin(kbuild.KBuildPlugin):
             else:
                 # handle wild card cases
                 for a in glob.glob(src):
-                    logger.info("Adding firmware:[{}][{}]".format(a,dst))
+                    logger.info("Adding firmware:[{}][{}]".format(a, dst))
                     shutil.copy(a, dst)
 
         # apply overlay if defined
         if self.options.kernel_initrd_overlay:
             overlay_src = os.path.join(
-                self.project.stage_dir,
-                self.options.kernel_initrd_overlay
+                self.project.stage_dir, self.options.kernel_initrd_overlay
             )
             shutil.copytree(overlay_src, initrd_unpacked_path)
 
@@ -669,7 +640,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 logger.info("Addon is dir")
                 shutil.copytree(src, dst)
             else:
-                logger.info("Addon is file:[{}][{}]".format(src,dst))
+                logger.info("Addon is file:[{}][{}]".format(src, dst))
                 # handle wild card cases
                 for a in glob.glob(src):
                     shutil.copy(a, dst)
@@ -680,13 +651,14 @@ class KernelPlugin(kbuild.KBuildPlugin):
         if os.path.exists(initrd_path):
             os.remove(initrd_path)
 
-        initrd_early = os.path.join(initrd_files_path, 'early')
+        initrd_early = os.path.join(initrd_files_path, "early")
         if os.path.isdir(initrd_early):
             subprocess.check_call(
                 "find . | cpio --create --format=newc --owner=0:0 > "
                 "{}".format(initrd_path),
                 shell=True,
-                cwd=initrd_early)
+                cwd=initrd_early,
+            )
 
         subprocess.check_call(
             "find . | cpio --create --format=newc --owner=0:0 | "
@@ -713,13 +685,11 @@ class KernelPlugin(kbuild.KBuildPlugin):
             )
 
     def _get_build_arch_dir(self):
-        return os.path.join(self.builddir, "arch",
-                            self.project.kernel_arch, "boot")
+        return os.path.join(self.builddir, "arch", self.project.kernel_arch, "boot")
 
     def _copy_vmlinuz(self):
         kernel = "{}-{}".format(self.kernel_image_target, self.kernel_release)
-        src = os.path.join(self._get_build_arch_dir(),
-                           self.kernel_image_target)
+        src = os.path.join(self._get_build_arch_dir(), self.kernel_image_target)
         dst = os.path.join(self.installdir, kernel)
         if not os.path.exists(src):
             raise ValueError(
@@ -734,8 +704,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     def _copy_system_map(self):
         src = os.path.join(self.builddir, "System.map")
-        dst = os.path.join(self.installdir,
-                           "System.map-{}".format(self.kernel_release))
+        dst = os.path.join(self.installdir, "System.map-{}".format(self.kernel_release))
         if not os.path.exists(src):
             raise ValueError(
                 "kernel build did not output a System.map in top level dir"
@@ -755,8 +724,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         for dtb in self.dtbs:
             found_dtbs = glob.glob(os.path.join(base_path, dtb))
             if not found_dtbs:
-                raise RuntimeError("No match for dtb "
-                                   "{!r} was found".format(dtb))
+                raise RuntimeError("No match for dtb " "{!r} was found".format(dtb))
             for f in found_dtbs:
                 # if dst already exists, clean it first, we are probably
                 # re-runing build
@@ -790,8 +758,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             "we suggest you take a look at these:\n"
         )
         required_opts = (
-            (required_generic + required_security + required_snappy +
-             required_systemd)
+            required_generic + required_security + required_snappy + required_systemd
         )
         missing = []
 
@@ -845,18 +812,17 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
     def _generate_module_dep(self):
         self.run(
-                [
-                    "depmod",
-                    "-b",
-                    self.installdir,
-                    "-F",
-                    os.path.join(
-                        self.installdir,
-                        "System.map-{}".format(self.kernel_release)
-                    ),
-                    "-w",
-                    self.kernel_release,
-                ]
+            [
+                "depmod",
+                "-b",
+                self.installdir,
+                "-F",
+                os.path.join(
+                    self.installdir, "System.map-{}".format(self.kernel_release)
+                ),
+                "-w",
+                self.kernel_release,
+            ]
         )
 
     def _setup_base(self, base):
@@ -882,8 +848,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         os.link(src, dst)
 
     def _make_efi(self):
-        kernel_f = "{}-{}".format(self.kernel_image_target,
-                                  self.kernel_release)
+        kernel_f = "{}-{}".format(self.kernel_image_target, self.kernel_release)
         kernel_p = os.path.join(self.installdir, kernel_f)
         initrd_p = os.path.join(self.installdir, "initrd.img")
         efi_img_p = os.path.join(self.installdir, "kernel.efi")
@@ -922,7 +887,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
                 risk="stable",
                 track=self.uc_series,
                 download_path=self.vanilla_initrd_snap,
-                arch=self.initrd_arch
+                arch=self.initrd_arch,
             )
 
     def build(self):
@@ -937,7 +902,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
             if self.options.kernel_compiler != "clang":
                 logger.warning("Only other 'supported' compiler is clang")
                 logger.warning("hopefully you know what you are doing")
-            self.make_cmd.append("CC=\"{}\"".format(self.options.kernel_compiler))
+            self.make_cmd.append('CC="{}"'.format(self.options.kernel_compiler))
         if self.options.kernel_compiler_parameters:
             for opt in self.options.kernel_compiler_parameters:
                 self.make_cmd.append("{}".format(opt))
@@ -968,18 +933,17 @@ class KernelPlugin(kbuild.KBuildPlugin):
 
         # upstream kernel installs under $INSTALL_MOD_PATH/lib/modules/
         # but snapd expects modules/ and firmware/
-        shutil.move(os.path.join(self.installdir, "lib", "modules"),
-                    self.installdir)
+        shutil.move(os.path.join(self.installdir, "lib", "modules"), self.installdir)
         # remove sym links modules/*/build and modules/*/source
         for d in ("build", "source"):
-            for f in glob.glob("{}/modules/*/{}".format(self.installdir, d),
-                               recursive=False):
+            for f in glob.glob(
+                "{}/modules/*/{}".format(self.installdir, d), recursive=False
+            ):
                 os.remove(f)
 
         if self.options.kernel_with_firmware:
             shutil.move(
-                os.path.join(self.installdir, "lib", "firmware"),
-                self.installdir
+                os.path.join(self.installdir, "lib", "firmware"), self.installdir
             )
         os.rmdir(os.path.join(self.installdir, "lib"))
         # install .config as config-$version
@@ -1000,10 +964,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         # check if there is custom path to be added
         if self.custom_path:
             # self.custom_path is terminated by ":" no need to add it here
-            env["PATH"] = "{}{}".format(
-                        self.custom_path,
-                        env.get("PATH", "")
-                    )
+            env["PATH"] = "{}{}".format(self.custom_path, env.get("PATH", ""))
         print("PATH: {}".format(env.get("PATH", "")))
         print(cmd_string)
         os.makedirs(cwd, exist_ok=True)
@@ -1011,24 +972,19 @@ class KernelPlugin(kbuild.KBuildPlugin):
             return common.run(cmd, env=env, cwd=cwd, **kwargs)
         except CalledProcessError as process_error:
             raise errors.SnapcraftPluginCommandError(
-                command=cmd,
-                part_name=self.name,
-                exit_code=process_error.returncode
+                command=cmd, part_name=self.name, exit_code=process_error.returncode
             ) from process_error
 
     def do_remake_config(self):
         # update config to include kconfig amendments using oldconfig
         cmd = 'yes "" | {} oldconfig'.format(
             " ".join([shlex.quote(c) for c in self.make_cmd])
-            )
+        )
 
         env = os.environ.copy()
         # check if there is custom path to be added
         if self.custom_path:
             # self.custom_path is terminated by ":" no need to add it here
-            env["PATH"] = "{}{}".format(
-                        self.custom_path,
-                        env.get("PATH", "")
-                    )
+            env["PATH"] = "{}{}".format(self.custom_path, env.get("PATH", ""))
 
         subprocess.check_call(cmd, env=env, shell=True, cwd=self.builddir)
