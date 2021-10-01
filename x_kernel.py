@@ -1027,10 +1027,9 @@ class PluginImpl(PluginV2):
         # configs during oldconfig in .config
         return [
             " ".join(['echo "Appling extra config...."']),
-            " ".join(["extra_config='{}'".format(config)]),
             " ".join(
                 [
-                    "echo ${extra_config}",
+                    "echo '{}'".format(config),
                     ">",
                     "${SNAPCRAFT_PART_BUILD}/.config_snap",
                 ]
@@ -1045,7 +1044,7 @@ class PluginImpl(PluginV2):
             ),
             " ".join(
                 [
-                    "echo ${extra_config}",
+                    "echo '{}'".format(config),
                     ">>",
                     "${SNAPCRAFT_PART_BUILD}/.config_snap",
                 ]
