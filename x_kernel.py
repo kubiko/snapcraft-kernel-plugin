@@ -773,15 +773,17 @@ class PluginImpl(PluginV2):
         cmd_pack_initrd = [
             " ".join(
                 [
-                    "[ -e ${SNAPCRAFT_PART_INSTALL}/initrd.img ]",
-                    "&&",
-                    "rm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*",
+                    "if compgen -G  ${SNAPCRAFT_PART_INSTALL}/initrd.img* > ",
+                    "/dev/null; then",
                 ]
             ),
+            " ".join(["\trm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*"]),
+            " ".join(["fi"]),
         ]
 
         cmd_pack_initrd.extend(
             [
+                " ".join([""]),
                 " ".join(["if [ -d ${INITRD_STAGING}/early ]; then"]),
                 " ".join(["\tcd ${INITRD_STAGING}/early"]),
                 " ".join(
