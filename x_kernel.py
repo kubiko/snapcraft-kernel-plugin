@@ -486,6 +486,14 @@ class PluginImpl(PluginV2):
                 ["# 1: reference dir, 2: file(s) including wild cards, 3: dst dir"]
             ),
             " ".join(["link_files() {"]),
+            " ".join(["\tif [ -d ${1}/${2} ]; then"]),
+            " ".join(["\t\tfor f in $(ls ${1}/${2})"]),
+            " ".join(["\t\tdo"]),
+            " ".join(["\t\t\tlink_files ${1} ${2}/${f} ${3}"]),
+            " ".join(["\t\tdone"]),
+            " ".join(["\t\treturn 0"]),
+            " ".join(["\tfi"]),
+            " ".join([""]),
             " ".join(['\tlocal found=""']),
             " ".join(["\tfor f in $(ls ${1}/${2})"]),
             " ".join(["\tdo"]),
@@ -493,6 +501,7 @@ class PluginImpl(PluginV2):
                 [
                     "\t\tlocal rel_path=$(",
                     "realpath",
+                    "-se",
                     "--relative-to=${1}",
                     "${f}",
                     ")",
