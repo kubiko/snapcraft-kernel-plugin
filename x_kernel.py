@@ -84,6 +84,15 @@ The following kernel specific options are provided by this plugin:
       provide the core boot logic which comes from snappy Ubuntu Core
       OS snap. Include all modules you need for mounting rootfs here.
 
+    - kernel-initrd-configured-modules:
+      (array of string)
+      list of modules to be added to the initrd
+      /lib/modules-load.d/ubuntu-core-initramfs.conf config
+      to be automatically loaded.
+      Configured modules are atomatically added to the kernel-initrd-modules
+      If modules in question is not supported by the kernel, it's automatically
+      removed
+
     - kernel-initrd-firmware:
       (array of string)
       list of firmware files to be included in the initrd; these need to be
@@ -267,6 +276,13 @@ class PluginImpl(PluginV2):
                     "items": {"type": "string"},
                     "default": [],
                 },
+                "kernel-initrd-configured-modules": {
+                    "type": "array",
+                    "minitems": 1,
+                    "uniqueItems": True,
+                    "items": {"type": "string"},
+                    "default": [],
+                },
                 "kernel-initrd-firmware": {
                     "type": "array",
                     "minitems": 1,
@@ -370,7 +386,7 @@ class PluginImpl(PluginV2):
             and not self.options.kernel_initrd_base_url
         ):
             click.echo(
-                "Warning: kernel-initrd-flavour is defined withut "
+                "Warning: kernel-initrd-flavour is defined without "
                 "kernel-initrd-base-url, it will be ignored!!"
             )
 
@@ -633,7 +649,15 @@ class PluginImpl(PluginV2):
             " ".join(['install_modules=""']),
             " ".join(['echo "Gathering module dependencies..."']),
             " ".join(
-                ["for m in {}".format(" ".join(self.options.kernel_initrd_modules))]
+                [
+                    "for",
+                    "m",
+                    "in",
+                    "{} {}".format(
+                        " ".join(self.options.kernel_initrd_modules),
+                        " ".join(self.options.kernel_initrd_configured_modules),
+                    ),
+                ]
             ),
             " ".join(["do"]),
             " ".join(
@@ -685,6 +709,16 @@ class PluginImpl(PluginV2):
                 " ".join(['echo "Rebuild modules dep list in initrd..."']),
                 " ".join(
                     [
+                        "cp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.order ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
+                    ]
+                ),
+                " ".join(
+                    [
+                        "cp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.builtin ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
+                    ]
+                ),
+                " ".join(
+                    [
                         "if [ -e ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE} ]; then"
                     ]
                 ),
@@ -697,6 +731,45 @@ class PluginImpl(PluginV2):
                     ]
                 ),
                 " ".join(["fi"]),
+                " ".join([""]),
+            ]
+        )
+
+        cmd_install_modules.extend(
+            [
+                " ".join(
+                    [
+                        'echo "Configuring ubuntu-core-initramfs.conf with supported modules"'
+                    ]
+                ),
+                " ".join(
+                    ['echo "If modules is not included in initrd, do not include it"']
+                ),
+                " ".join(
+                    [
+                        "initramfs_conf=${initrd_unpacked_path_main}/usr/lib/modules-load.d/ubuntu-core-initramfs.conf"
+                    ]
+                ),
+                " ".join(['echo "# configures modules" > ${initramfs_conf}']),
+                " ".join(
+                    [
+                        "for m in {}".format(
+                            " ".join(self.options.kernel_initrd_configured_modules)
+                        )
+                    ]
+                ),
+                " ".join(["do"]),
+                " ".join(
+                    [
+                        "\tif [",
+                        "-n",
+                        '"$(modprobe -n -q --show-depends -d ${initrd_unpacked_path_main} -S "${KERNEL_RELEASE}" ${m})"',
+                        "]; then",
+                    ]
+                ),
+                " ".join(["\t\techo ${m} >> ${initramfs_conf}"]),
+                " ".join(["\tfi"]),
+                " ".join(["done"]),
             ]
         )
 
