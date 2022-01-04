@@ -709,17 +709,17 @@ class PluginImpl(PluginV2):
                 " ".join(['echo "Rebuild modules dep list in initrd..."']),
                 " ".join(
                     [
-                        "cp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.order ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
+                        "if [ -d ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE} ]; then"
                     ]
                 ),
                 " ".join(
                     [
-                        "cp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.builtin ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
+                        "\tcp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.order ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
                     ]
                 ),
                 " ".join(
                     [
-                        "if [ -e ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE} ]; then"
+                        "\tcp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.builtin ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
                     ]
                 ),
                 " ".join(
