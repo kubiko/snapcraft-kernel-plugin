@@ -1279,7 +1279,7 @@ class PluginImpl(PluginV2):
             ),
             " ".join(
                 [
-                    "[ -e ${SNAPCRAFT_PART_INSTALL}/lib/modules ]",
+                    "[ -L ${SNAPCRAFT_PART_INSTALL}/lib/modules ]",
                     "&&",
                     "rm -rf ${SNAPCRAFT_PART_INSTALL}/lib/modules",
                 ]
