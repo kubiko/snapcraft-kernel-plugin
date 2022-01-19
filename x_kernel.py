@@ -1002,7 +1002,7 @@ class PluginImpl(PluginV2):
             # Strip any subdirectories 
             subdir_index = dtb.rfind("/")
             if subdir_index > 0:
-                install_dtb = dtb[:subdir_index]
+                install_dtb = dtb[subdir_index+1:]
             else:
                 install_dtb = dtb
 
