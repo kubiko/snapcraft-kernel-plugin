@@ -1004,8 +1004,8 @@ class PluginImpl(PluginV2):
                     " ".join(
                         [
                             "ln -f",
-                            "${KERNEL_BUILD_ARCH_DIR}/dts/{}".format(dtb),
-                            "${SNAPCRAFT_PART_INSTALL}/dtbs/{}".format(dtb),
+                            f"${{KERNEL_BUILD_ARCH_DIR}}/dts/{dtb}",
+                            f"${{SNAPCRAFT_PART_INSTALL}}/dtbs/{dtb}",
                         ]
                     ),
                 ]
