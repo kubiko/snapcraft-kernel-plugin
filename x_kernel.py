@@ -999,13 +999,20 @@ class PluginImpl(PluginV2):
             " ".join(["mkdir -p ${SNAPCRAFT_PART_INSTALL}/dtbs"]),
         ]
         for dtb in self.dtbs:
+            # Strip any subdirectories 
+            subdir_index = dtb.rfind("/")
+            if subdir_index > 0:
+                install_dtb = dtb[:subdir_index]
+            else:
+                install_dtb = dtb
+
             cmd.extend(
                 [
                     " ".join(
                         [
                             "ln -f",
                             f"${{KERNEL_BUILD_ARCH_DIR}}/dts/{dtb}",
-                            f"${{SNAPCRAFT_PART_INSTALL}}/dtbs/{dtb}",
+                            f"${{SNAPCRAFT_PART_INSTALL}}/dtbs/{install_dtb}",
                         ]
                     ),
                 ]
