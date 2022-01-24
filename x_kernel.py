@@ -1027,7 +1027,7 @@ class PluginImpl(PluginV2):
             " ".join(
                 [
                     "\t"
-                    "branch=$(cat ${SNAPCRAFT_PART_SRC}/debian/debian.env | awk -F '.' '{print $2}')",
+                    "branch=$(cut -d'.' -f 2- < ${SNAPCRAFT_PART_SRC}/debian/debian.env)",
                 ]
             ),
             " ".join(["\tbaseconfigdir=${SNAPCRAFT_PART_SRC}/debian.${branch}/config"]),
