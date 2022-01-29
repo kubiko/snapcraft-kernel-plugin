@@ -118,8 +118,8 @@ _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
 default_kernel_image_target = {
     "amd64": "bzImage",
     "i386": "bzImage",
-    "armhf": "vmlinuz",
-    "arm64": "vmlinuz",
+    "armhf": "zImage",
+    "arm64": "Image.gz",
     "powerpc": "uImage",
     "ppc64el": "vmlinux.strip",
     "s390x": "bzImage",
@@ -223,7 +223,7 @@ class PluginImpl(PluginV2):
             and not self.options.kernel_initrd_base_url
         ):
             click.echo(
-                "Warning: kernel-initrd-flavour is defined withut "
+                "Warning: kernel-initrd-flavour is defined without "
                 "kernel-initrd-base-url, it will be ignored!!"
             )
 
@@ -307,6 +307,14 @@ class PluginImpl(PluginV2):
                 ["# 1: reference dir, 2: file(s) including wild cards, 3: dst dir"]
             ),
             " ".join(["link_files() {"]),
+            " ".join(["\tif [ -d ${1}/${2} ]; then"]),
+            " ".join(["\t\tfor f in $(ls ${1}/${2})"]),
+            " ".join(["\t\tdo"]),
+            " ".join(["\t\t\tlink_files ${1} ${2}/${f} ${3}"]),
+            " ".join(["\t\tdone"]),
+            " ".join(["\t\treturn 0"]),
+            " ".join(["\tfi"]),
+            " ".join([""]),
             " ".join(['\tlocal found=""']),
             " ".join(["\tfor f in $(ls ${1}/${2})"]),
             " ".join(["\tdo"]),
@@ -314,6 +322,7 @@ class PluginImpl(PluginV2):
                 [
                     "\t\tlocal rel_path=$(",
                     "realpath",
+                    "-se",
                     "--relative-to=${1}",
                     "${f}",
                     ")",
@@ -457,7 +466,15 @@ class PluginImpl(PluginV2):
             " ".join(['install_modules=""']),
             " ".join(['echo "Gathering module dependencies..."']),
             " ".join(
-                ["for m in {}".format(" ".join(self.options.kernel_initrd_modules))]
+                [
+                    "for",
+                    "m",
+                    "in",
+                    "{} {}".format(
+                        " ".join(self.options.kernel_initrd_modules),
+                        " ".join(self.options.kernel_initrd_configured_modules),
+                    ),
+                ]
             ),
             " ".join(["do"]),
             " ".join(
@@ -509,7 +526,17 @@ class PluginImpl(PluginV2):
                 " ".join(['echo "Rebuild modules dep list in initrd..."']),
                 " ".join(
                     [
-                        "if [ -e ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE} ]; then"
+                        "if [ -d ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE} ]; then"
+                    ]
+                ),
+                " ".join(
+                    [
+                        "\tcp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.order ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
+                    ]
+                ),
+                " ".join(
+                    [
+                        "\tcp ${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}/modules.builtin ${initrd_unpacked_path_main}/lib/modules/${KERNEL_RELEASE}"
                     ]
                 ),
                 " ".join(
@@ -521,6 +548,45 @@ class PluginImpl(PluginV2):
                     ]
                 ),
                 " ".join(["fi"]),
+                " ".join([""]),
+            ]
+        )
+
+        cmd_install_modules.extend(
+            [
+                " ".join(
+                    [
+                        'echo "Configuring ubuntu-core-initramfs.conf with supported modules"'
+                    ]
+                ),
+                " ".join(
+                    ['echo "If modules is not included in initrd, do not include it"']
+                ),
+                " ".join(
+                    [
+                        "initramfs_conf=${initrd_unpacked_path_main}/usr/lib/modules-load.d/ubuntu-core-initramfs.conf"
+                    ]
+                ),
+                " ".join(['echo "# configures modules" > ${initramfs_conf}']),
+                " ".join(
+                    [
+                        "for m in {}".format(
+                            " ".join(self.options.kernel_initrd_configured_modules)
+                        )
+                    ]
+                ),
+                " ".join(["do"]),
+                " ".join(
+                    [
+                        "\tif [",
+                        "-n",
+                        '"$(modprobe -n -q --show-depends -d ${initrd_unpacked_path_main} -S "${KERNEL_RELEASE}" ${m})"',
+                        "]; then",
+                    ]
+                ),
+                " ".join(["\t\techo ${m} >> ${initramfs_conf}"]),
+                " ".join(["\tfi"]),
+                " ".join(["done"]),
             ]
         )
 
@@ -606,15 +672,17 @@ class PluginImpl(PluginV2):
         cmd_pack_initrd = [
             " ".join(
                 [
-                    "[ -e ${SNAPCRAFT_PART_INSTALL}/initrd.img ]",
-                    "&&",
-                    "rm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*",
+                    "if compgen -G  ${SNAPCRAFT_PART_INSTALL}/initrd.img* > ",
+                    "/dev/null; then",
                 ]
             ),
+            " ".join(["\trm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*"]),
+            " ".join(["fi"]),
         ]
 
         cmd_pack_initrd.extend(
             [
+                " ".join([""]),
                 " ".join(["if [ -d ${INITRD_STAGING}/early ]; then"]),
                 " ".join(["\tcd ${INITRD_STAGING}/early"]),
                 " ".join(
@@ -744,7 +812,6 @@ class PluginImpl(PluginV2):
             " ".join(
                 [
                     "rm",
-                    "-rf",
                     "${SNAPCRAFT_PART_INSTALL}/modules/*/build",
                     "${SNAPCRAFT_PART_INSTALL}/modules/*/source",
                 ]
