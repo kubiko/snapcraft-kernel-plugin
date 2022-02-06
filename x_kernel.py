@@ -149,6 +149,10 @@ The following kernel specific options are provided by this plugin:
       During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-addon}
       Default: none
+
+    - kernel-enable-zfs-support
+      (boolean; default: False)
+      use this flag to build in zfs support through extra ko modules
 """
 
 import click
@@ -166,6 +170,7 @@ _compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7"}
 _INITRD_URL = "{base_url}/{snap_name}"
 _INITRD_SNAP_NAME = "uc-initrd"
 _INITRD_SNAP_FILE = "{snap_name}_{series}{flavour}_{architecture}.snap"
+_ZFS_URL = "https://github.com/openzfs/zfs"
 
 default_kernel_image_target = {
     "amd64": "bzImage",
@@ -346,6 +351,10 @@ class PluginImpl(PluginV2):
                     "uniqueItems": True,
                     "items": {"type": "string"},
                     "default": [],
+                },
+                "kernel-enable-zfs-support": {
+                    "type": "boolean",
+                    "default": False,
                 },
             },
         }
@@ -585,6 +594,30 @@ class PluginImpl(PluginV2):
             *cmd_download_initrd,
             " ".join(["fi"]),
         ]
+
+    def _clone_zfs_cmd(self) -> List[str]:
+        # clone zfs if needed
+        if self.options.kernel_enable_zfs_support:
+            return [
+                " ".join(["if [ ! -d ${SNAPCRAFT_PART_BUILD}/zfs ]; then"]),
+                " ".join(['\techo "clonning zfs..."']),
+                " ".join(
+                    [
+                        "\tgit",
+                        "clone",
+                        "--depth=1",
+                        _ZFS_URL,
+                        "${SNAPCRAFT_PART_BUILD}/zfs",
+                        "-b",
+                        "master",
+                    ]
+                ),
+                " ".join(["fi"]),
+            ]
+        else:
+            return [
+                " ".join(['echo "zfs is not enabled"']),
+            ]
 
     def _unpack_generic_initrd_cmd(self) -> List[str]:
         cmd_rm = [
@@ -999,10 +1032,10 @@ class PluginImpl(PluginV2):
             " ".join(["mkdir -p ${SNAPCRAFT_PART_INSTALL}/dtbs"]),
         ]
         for dtb in self.dtbs:
-            # Strip any subdirectories 
+            # Strip any subdirectories
             subdir_index = dtb.rfind("/")
             if subdir_index > 0:
-                install_dtb = dtb[subdir_index+1:]
+                install_dtb = dtb[subdir_index + 1 :]
             else:
                 install_dtb = dtb
 
@@ -1411,6 +1444,14 @@ class PluginImpl(PluginV2):
             "lz4",
             "curl",
         }
+        if self.options.kernel_enable_zfs_support:
+            build_packages |= {
+                "autoconf",
+                "automake",
+                "libblkid-dev",
+                "libtool",
+                "python3",
+            }
         return build_packages
 
     def get_build_environment(self) -> Dict[str, str]:
@@ -1489,6 +1530,57 @@ class PluginImpl(PluginV2):
 
         return cmd
 
+    def _get_zfs_build_commands(self) -> Set[str]:
+        # include zfs build steps if required
+        if self.options.kernel_enable_zfs_support:
+            return [
+                " ".join(['echo "Building zfs modules..."']),
+                " ".join(
+                    [
+                        "cd",
+                        "${SNAPCRAFT_PART_BUILD}/zfs",
+                    ]
+                ),
+                " ".join(["./autogen.sh"]),
+                " ".join(
+                    [
+                        "./configure",
+                        "--with-linux=${SNAPCRAFT_PART_SRC}",
+                        "--with-linux-obj=${SNAPCRAFT_PART_BUILD}",
+                        "--with-config=kernel",
+                    ]
+                ),
+                " ".join(["make -j$(nproc)"]),
+                " ".join(
+                    [
+                        "make",
+                        "install",
+                        "DESTDIR=${SNAPCRAFT_PART_INSTALL}/zfs",
+                    ]
+                ),
+                " ".join(['release_version="$(ls ${SNAPCRAFT_PART_INSTALL}/modules)"']),
+                " ".join(
+                    [
+                        "mv",
+                        "${SNAPCRAFT_PART_INSTALL}/zfs/lib/modules/${release_version}/extra",
+                        "${SNAPCRAFT_PART_INSTALL}/modules/${release_version}",
+                    ]
+                ),
+                " ".join(
+                    [
+                        "rm",
+                        "-rf",
+                        "${SNAPCRAFT_PART_INSTALL}/zfs",
+                    ]
+                ),
+                " ".join(['echo "Rebuilding module dependencies"']),
+                " ".join(["depmod -b ${SNAPCRAFT_PART_INSTALL} ${release_version}"]),
+            ]
+        else:
+            return [
+                " ".join(['echo "Not building zfs modules"']),
+            ]
+
     def get_build_commands(self) -> List[str]:
         click.echo("Getting build commands...")
         self._configure_compiler()
@@ -1500,6 +1592,8 @@ class PluginImpl(PluginV2):
             " ".join([""]),
             *self._download_generic_initrd_cmd(),
             " ".join([""]),
+            *self._clone_zfs_cmd(),
+            " ".join([""]),
             *self._clean_old_build_cmd(),
             " ".join(["\n"]),
             *self._get_configure_command(),
@@ -1509,6 +1603,8 @@ class PluginImpl(PluginV2):
             *self._get_build_command(),
             " ".join(["\n"]),
             *self._get_install_command(),
+            " ".join(["\n"]),
+            *self._get_zfs_build_commands(),
             " ".join(["\n"]),
             " ".join(['echo "Kernel build finished!"']),
         ]
