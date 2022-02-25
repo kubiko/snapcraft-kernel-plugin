@@ -180,6 +180,7 @@ default_kernel_image_target = {
     "powerpc": "uImage",
     "ppc64el": "vmlinux.strip",
     "s390x": "bzImage",
+    "riscv64": "Image",
 }
 
 required_generic = [
@@ -449,6 +450,8 @@ class PluginImpl(PluginV2):
             self.kernel_arch = "arm"
         elif self.target_arch == "arm64":
             self.kernel_arch = "arm64"
+        elif self.target_arch == "riscv64":
+            self.kernel_arch = "riscv"
         elif self.target_arch == "amd64":
             self.kernel_arch = "x86"
         else:
@@ -459,6 +462,8 @@ class PluginImpl(PluginV2):
             self.deb_arch = "armhf"
         elif self.target_arch == "arm64":
             self.deb_arch = "arm64"
+        elif self.target_arch == "riscv64":
+            self.deb_arch = "riscv64"
         elif self.target_arch == "amd64":
             self.deb_arch = "amd64"
         else:
@@ -488,7 +493,7 @@ class PluginImpl(PluginV2):
         self.dtbs = ["{}.dtb".format(i) for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif self.kernel_arch == "arm" or self.kernel_arch == "arm64":
+        elif self.kernel_arch == "arm" or self.kernel_arch == "arm64" or self.kernel_arch == "riscv64":
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
                 ["dtbs_install", "INSTALL_DTBS_PATH=${SNAPCRAFT_PART_INSTALL}/dtbs"]

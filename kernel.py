@@ -158,6 +158,7 @@ default_kernel_image_target = {
     "powerpc": "uImage",
     "ppc64el": "vmlinux.strip",
     "s390x": "bzImage",
+    "riscv64": "Image",
 }
 
 required_generic = [
@@ -466,7 +467,7 @@ class KernelPlugin(kbuild.KBuildPlugin):
         self.dtbs = ["{}.dtb".format(i) for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif self.project.kernel_arch == "arm" or self.project.kernel_arch == "arm64":
+        elif self.project.kernel_arch == "arm" or self.project.kernel_arch == "arm64" or self.project.kernel_arch == "riscv64":
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
                 ["dtbs_install", "INSTALL_DTBS_PATH={}/dtbs".format(self.installdir)]
