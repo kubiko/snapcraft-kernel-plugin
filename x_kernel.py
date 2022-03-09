@@ -156,7 +156,6 @@ The following kernel specific options are provided by this plugin:
 """
 
 import click
-import logging
 import os
 import sys
 
@@ -240,6 +239,7 @@ required_systemd = [
 ]
 
 required_boot = ["squashfs"]
+
 
 # class KernelPlugin(PluginV2):
 class PluginImpl(PluginV2):
@@ -402,11 +402,11 @@ class PluginImpl(PluginV2):
 
         if self.options.kernel_initrd_base_url:
             if self.options.kernel_initrd_flavour:
-                flavour = "-{}".format(self.options.kernel_initrd_flavour)
+                flavour = f"-{self.options.kernel_initrd_flavour}"
             else:
                 flavour = ""
         else:
-            flavour = "-{}".format(self.options.kernel_initrd_channel)
+            flavour = f"-{self.options.kernel_initrd_channel}"
 
         # determine type of initrd
         initrd_snap_file_name = _INITRD_SNAP_FILE.format(
@@ -443,7 +443,7 @@ class PluginImpl(PluginV2):
             # self.target_arch = os.getenv("SNAP_ARCH")
             self.target_arch = ProjectOptions().deb_arch
 
-        click.echo("Target architecture: {}".format(self.target_arch))
+        click.echo(f"Target architecture: {self.target_arch}")
 
     def _get_kernel_architecture(self) -> None:
         if self.target_arch == "armhf":
@@ -472,8 +472,8 @@ class PluginImpl(PluginV2):
     def _check_cross_compilation(self) -> None:
         host_arch = os.getenv("SNAP_ARCH")
         if host_arch != self.target_arch:
-            click.echo("Configuring cross build to {}".format(self.kernel_arch))
-            self.make_cmd.append("ARCH={}".format(self.kernel_arch))
+            click.echo(f"Configuring cross build to {self.kernel_arch}")
+            self.make_cmd.append(f"ARCH={self.kernel_arch}")
             self.make_cmd.append("CROSS_COMPILE=${SNAPCRAFT_ARCH_TRIPLET}-")
 
     def _set_kernel_targets(self) -> None:
@@ -490,17 +490,17 @@ class PluginImpl(PluginV2):
             "INSTALL_MOD_STRIP=1",
             "INSTALL_MOD_PATH=${SNAPCRAFT_PART_INSTALL}",
         ]
-        self.dtbs = ["{}.dtb".format(i) for i in self.options.kernel_device_trees]
+        self.dtbs = [f"{i}.dtb" for i in self.options.kernel_device_trees]
         if self.dtbs:
             self.make_targets.extend(self.dtbs)
-        elif self.kernel_arch == "arm" or self.kernel_arch == "arm64" or self.kernel_arch == "riscv64":
+        elif self.kernel_arch in ("arm", "arm64", "riscv64"):
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
                 ["dtbs_install", "INSTALL_DTBS_PATH=${SNAPCRAFT_PART_INSTALL}/dtbs"]
             )
         self.make_install_targets.extend(self._get_fw_install_targets())
 
-    def _get_fw_install_targets(self) -> str:
+    def _get_fw_install_targets(self) -> List[str]:
         if not self.options.kernel_with_firmware:
             return []
 
@@ -571,18 +571,14 @@ class PluginImpl(PluginV2):
                 " ".join(['\techo "Downloading vanilla initrd from snap store"']),
                 " ".join(
                     [
-                        "UBUNTU_STORE_ARCH={arch}".format(arch=self.initrd_arch),
+                        f"UBUNTU_STORE_ARCH={self.initrd_arch}",
                         "snap",
                         "download",
                         "uc-initrd",
                         "--channel",
-                        "{}/{}".format(
-                            self.uc_series, self.options.kernel_initrd_channel
-                        ),
+                        f"{self.uc_series}/{self.options.kernel_initrd_channel}",
                         "--basename",
-                        "$(basename {} | cut -f1 -d'.')".format(
-                            self.vanilla_initrd_snap
-                        ),
+                        f"$(basename {self.vanilla_initrd_snap} | cut -f1 -d'.')",
                     ]
                 ),
             ]
@@ -593,7 +589,7 @@ class PluginImpl(PluginV2):
             # assume we are re-running build
             " ".join(
                 [
-                    "if [ ! -e {} ]; then".format(self.vanilla_initrd_snap),
+                    f"if [ ! -e {self.vanilla_initrd_snap} ]; then",
                 ]
             ),
             *cmd_download_initrd,
@@ -619,10 +615,9 @@ class PluginImpl(PluginV2):
                 ),
                 " ".join(["fi"]),
             ]
-        else:
-            return [
-                " ".join(['echo "zfs is not enabled"']),
-            ]
+        return [
+            " ".join(['echo "zfs is not enabled"']),
+        ]
 
     def _unpack_generic_initrd_cmd(self) -> List[str]:
         cmd_rm = [
@@ -691,17 +686,14 @@ class PluginImpl(PluginV2):
                     "for",
                     "m",
                     "in",
-                    "{} {}".format(
-                        " ".join(self.options.kernel_initrd_modules),
-                        " ".join(self.options.kernel_initrd_configured_modules),
-                    ),
+                    f"{' '.join(self.options.kernel_initrd_modules)} {' '.join(self.options.kernel_initrd_configured_modules)}",
                 ]
             ),
             " ".join(["do"]),
             " ".join(
                 [
                     '\tinstall_modules="${install_modules}',
-                    "$(" "modprobe",
+                    "$(modprobe",
                     "-n",
                     "-q",
                     "--show-depends",
@@ -731,9 +723,9 @@ class PluginImpl(PluginV2):
                     [
                         "\tlink_files",
                         "${SNAPCRAFT_PART_INSTALL}",
-                        "$(" "realpath",
+                        "$(realpath",
                         "--relative-to=${SNAPCRAFT_PART_INSTALL}",
-                        "${m}" ")",
+                        "${m})",
                         "${initrd_unpacked_path_main}",
                     ]
                 ),
@@ -791,9 +783,7 @@ class PluginImpl(PluginV2):
                 " ".join(['echo "# configures modules" > ${initramfs_conf}']),
                 " ".join(
                     [
-                        "for m in {}".format(
-                            " ".join(self.options.kernel_initrd_configured_modules)
-                        )
+                        f"for m in {' '.join(self.options.kernel_initrd_configured_modules)}",
                     ]
                 ),
                 " ".join(["do"]),
@@ -815,7 +805,7 @@ class PluginImpl(PluginV2):
         cmd_copy_initrd_overlay = [
             " ".join(['echo "Installing initrd overlay..."']),
             " ".join(
-                ["for f in {}".format(" ".join(self.options.kernel_initrd_firmware))]
+                [f"for f in {' '.join(self.options.kernel_initrd_firmware)}"]
             ),
             " ".join(["do"]),
             # firmware can be from kernel build or from stage
@@ -856,7 +846,7 @@ class PluginImpl(PluginV2):
                         [
                             "link_files",
                             "${SNAPCRAFT_STAGE}",
-                            "{}".format(self.options.kernel_initrd_overlay),
+                            f"{self.options.kernel_initrd_overlay}",
                             "${initrd_unpacked_path_main}",
                         ]
                     ),
@@ -869,7 +859,7 @@ class PluginImpl(PluginV2):
                 " ".join([""]),
                 " ".join(['echo "Installing initrd addons..."']),
                 " ".join(
-                    ["for a in {}".format(" ".join(self.options.kernel_initrd_addons))]
+                    [f"for a in {' '.join(self.options.kernel_initrd_addons)}"]
                 ),
                 " ".join(["do"]),
                 " ".join(
@@ -908,7 +898,7 @@ class PluginImpl(PluginV2):
                 " ".join(["\tcd ${INITRD_STAGING}/early"]),
                 " ".join(
                     [
-                        "\t" "find . | cpio --create --format=newc --owner=0:0 > ",
+                        "\tfind . | cpio --create --format=newc --owner=0:0 > ",
                         "${SNAPCRAFT_PART_INSTALL}/initrd.img-${KERNEL_RELEASE}",
                     ]
                 ),
@@ -923,7 +913,7 @@ class PluginImpl(PluginV2):
                 " ".join(
                     [
                         "find . | cpio --create --format=newc --owner=0:0 | ",
-                        "{} >> ".format(self._compression_cmd()),
+                        f"{self._compression_cmd()} >> ",
                         "${SNAPCRAFT_PART_INSTALL}/initrd.img-${KERNEL_RELEASE}",
                     ]
                 ),
@@ -958,12 +948,12 @@ class PluginImpl(PluginV2):
         options = ""
         if self.options.kernel_initrd_compression_options:
             for opt in self.options.kernel_initrd_compression_options:
-                options = "{} {}".format(options, opt)
+                options = f"{options} {opt}"
         else:
             options = _compressor_options[self.options.kernel_initrd_compression]
 
-        cmd = "{} {}".format(compressor, options)
-        click.echo("Using initrd compressions command: {!r}".format(cmd))
+        cmd = f"{compressor} {options}"
+        click.echo(f"Using initrd compressions command: {cmd!r}")
         return cmd
 
     def _parse_kernel_release_cmd(self) -> List[str]:
@@ -1040,7 +1030,7 @@ class PluginImpl(PluginV2):
             # Strip any subdirectories
             subdir_index = dtb.rfind("/")
             if subdir_index > 0:
-                install_dtb = dtb[subdir_index + 1 :]
+                install_dtb = dtb[subdir_index + 1:]
             else:
                 install_dtb = dtb
 
@@ -1059,7 +1049,7 @@ class PluginImpl(PluginV2):
 
     def _assemble_ubuntu_config_cmd(self) -> List[str]:
         flavour = self.options.kconfigflavour
-        click.echo("Using ubuntu config flavour {}".format(flavour))
+        click.echo(f"Using ubuntu config flavour {flavour}")
         cmd = [
             " ".join(['\techo "Assembling Ubuntu config..."']),
             " ".join(
@@ -1078,7 +1068,7 @@ class PluginImpl(PluginV2):
             " ".join(["\tubuntuconfig=${baseconfigdir}/config.common.ubuntu"]),
             " ".join(["\tarchconfig=${archconfigdir}/config.common.${DEB_ARCH}"]),
             " ".join(
-                ["\tflavourconfig=${{archconfigdir}}/config.flavour.{}".format(flavour)]
+                [f"\tflavourconfig=${{archconfigdir}}/config.flavour.{flavour}"]
             ),
             " ".join(
                 [
@@ -1114,7 +1104,7 @@ class PluginImpl(PluginV2):
                         [
                             "\t",
                             "cp",
-                            "{}".format(self.options.kconfigfile),
+                            f"{self.options.kconfigfile}",
                             "${SNAPCRAFT_PART_BUILD}/.config",
                         ]
                     ),
@@ -1158,7 +1148,7 @@ class PluginImpl(PluginV2):
             " ".join(['echo "Appling extra config...."']),
             " ".join(
                 [
-                    "echo '{}'".format(config),
+                    f"echo '{config}'",
                     ">",
                     "${SNAPCRAFT_PART_BUILD}/.config_snap",
                 ]
@@ -1173,7 +1163,7 @@ class PluginImpl(PluginV2):
             ),
             " ".join(
                 [
-                    "echo '{}'".format(config),
+                    f"echo '{config}'",
                     ">>",
                     "${SNAPCRAFT_PART_BUILD}/.config_snap",
                 ]
@@ -1195,9 +1185,9 @@ class PluginImpl(PluginV2):
             " ".join(['echo "Remaking oldconfig...."']),
             " ".join(
                 [
-                    "bash -c '" 'yes ""',
+                    "bash -c ' yes \"\"",
                     "|| true'",
-                    "| {} oldconfig".format(" ".join(make_cmd)),
+                    f"| {' '.join(make_cmd)} oldconfig",
                 ]
             ),
         ]
@@ -1226,17 +1216,17 @@ class PluginImpl(PluginV2):
             ),
         ]
 
-    def check_new_config(config_path: str):
+    def check_new_config(self, config_path: str):
         click.echo("Checking created config...")
-        builtin, modules = _do_parse_config(config_path)
-        _do_check_config(builtin, modules)
-        _do_check_initrd(builtin, modules)
+        builtin, modules = self._do_parse_config(config_path)
+        self._do_check_config(builtin, modules)
+        self._do_check_initrd(builtin, modules)
 
-    def _do_parse_config(config_path: str):
+    def _do_parse_config(self, config_path: str):
         builtin = []
         modules = []
         # tokenize .config and store options in builtin[] or modules[]
-        with open(config_path) as f:
+        with open(config_path, encoding="utf8") as f:
             for line in f:
                 tok = line.strip().split("=")
                 items = len(tok)
@@ -1249,7 +1239,7 @@ class PluginImpl(PluginV2):
                         modules.append(opt)
         return builtin, modules
 
-    def _do_check_config(builtin: List[str], modules: List[str]):
+    def _do_check_config(self, builtin: List[str], modules: List[str]):
         # check the resulting .config has all the necessary options
         msg = (
             "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
@@ -1264,26 +1254,23 @@ class PluginImpl(PluginV2):
         missing = []
 
         for code in required_opts:
-            opt = "CONFIG_{}".format(code)
-            if opt in builtin:
+            opt = f"CONFIG_{code}"
+            if opt in builtin or opt in modules:
                 continue
-            elif opt in modules:
-                continue
-            else:
-                missing.append(opt)
+            missing.append(opt)
 
         if missing:
-            warn = "\n{}\n".format(msg)
+            warn = f"\n{msg}\n"
             for opt in missing:
                 note = ""
                 if opt == "CONFIG_CC_STACKPROTECTOR_STRONG":
                     note = "(4.1.x and later versions only)"
                 elif opt == "CONFIG_DEVPTS_MULTIPLE_INSTANCES":
                     note = "(4.8.x and earlier versions only)"
-                warn += "{} {}\n".format(opt, note)
+                warn += f"{opt} {note}\n"
             click.echo(warn)
 
-    def _do_check_initrd(builtin: List[str], modules: List[str]):
+    def _do_check_initrd(self, builtin: List[str], modules: List[str]):
         # check all required_boot[] items are either builtin or part of initrd
         msg = (
             "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
@@ -1294,24 +1281,20 @@ class PluginImpl(PluginV2):
         missing = []
 
         for code in required_boot:
-            opt = "CONFIG_{}".format(code.upper())
+            opt = f"CONFIG_{code.upper()}"
             if opt in builtin:
                 continue
-            elif opt in modules:
-                if code in self.options.kernel_initrd_modules:
-                    continue
-                else:
-                    missing.append(opt)
-            else:
-                missing.append(opt)
+            if opt in modules and code in self.options.kernel_initrd_modules:
+                continue
+            missing.append(opt)
 
         if missing:
-            warn = "\n{}\n".format(msg)
+            warn = f"\n{msg}\n"
             for opt in missing:
-                warn += "{}\n".format(opt)
+                warn += f"{opt}\n"
             click.echo(warn)
 
-    def _clean_old_build_cmd(self) -> Set[str]:
+    def _clean_old_build_cmd(self) -> List[str]:
         return [
             " ".join([""]),
             " ".join(['echo "Cleaning previous build first..."']),
@@ -1331,7 +1314,7 @@ class PluginImpl(PluginV2):
             ),
         ]
 
-    def _arrange_install_dir_cmd(self) -> Set[str]:
+    def _arrange_install_dir_cmd(self) -> List[str]:
         return [
             " ".join([""]),
             " ".join(['echo "Finalizing install directory..."']),
@@ -1382,7 +1365,7 @@ class PluginImpl(PluginV2):
             ),
         ]
 
-    def _install_config_cmd(self) -> Set[str]:
+    def _install_config_cmd(self) -> List[str]:
         # install .config as config-$version
         return [
             " ".join([""]),
@@ -1404,13 +1387,13 @@ class PluginImpl(PluginV2):
             if self.options.kernel_compiler != "clang":
                 click.echo("Only other 'supported' compiler is clang")
                 click.echo("hopefully you know what you are doing")
-            self.make_cmd.append('CC="{}"'.format(self.options.kernel_compiler))
+            self.make_cmd.append(f"CC=\"{self.options.kernel_compiler}\"")
         if self.options.kernel_compiler_parameters:
             for opt in self.options.kernel_compiler_parameters:
-                self.make_cmd.append("{}".format(opt))
+                self.make_cmd.append(str(opt))
 
-    def _make_efi_cmd(self) -> Set[str]:
-        kernel_f = "${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}"
+    def _make_efi_cmd(self) -> List[str]:
+        # kernel_f = "${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}"
         kernel_p = "${SNAPCRAFT_PART_INSTALL}/${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}"
         initrd_p = "${SNAPCRAFT_PART_INSTALL}/initrd.img"
         efi_img_p = "${SNAPCRAFT_PART_INSTALL}/kernel.efi"
@@ -1421,14 +1404,14 @@ class PluginImpl(PluginV2):
                 [
                     "objcopy",
                     "--add-section",
-                    ".linux={}".format(kernel_p),
+                    f".linux={kernel_p}",
                     "--change-section-vma",
                     ".linux=0x40000",
                     "--add-section",
-                    ".initrd={}".format(initrd_p),
+                    f".initrd={initrd_p}",
                     "--change-section-vma",
                     ".initrd=0x3000000",
-                    "/usr/lib/systemd/boot/efi/linux{}.efi.stub".format(arch),
+                    f"/usr/lib/systemd/boot/efi/linux{arch}.efi.stub",
                     efi_img_p,
                 ]
             ),
@@ -1479,7 +1462,7 @@ class PluginImpl(PluginV2):
                 custom_path = "{}{}:".format(
                     os.path.join("${SNAPCRAFT_STAGE}", p), custom_path
                 )
-            env["PATH"] = ("{}:$PATH".format(self.custom_path),)
+            env["PATH"] = (f"{self.custom_path}:$PATH")
 
         if "MAKEFLAGS" in os.environ:
             makeflags = re.sub(r"-I[\S]*", "", os.environ["MAKEFLAGS"])
@@ -1487,13 +1470,13 @@ class PluginImpl(PluginV2):
 
         return env
 
-    def _get_build_command(self) -> Set[str]:
+    def _get_build_command(self) -> List[str]:
         return [
             " ".join(['echo "Building kernel..."']),
             " ".join(self.make_cmd + self.make_targets),
         ]
 
-    def _get_post_install_cmd(self) -> Set[str]:
+    def _get_post_install_cmd(self) -> List[str]:
         return [
             " ".join(["\n"]),
             *self._parse_kernel_release_cmd(),
@@ -1508,7 +1491,7 @@ class PluginImpl(PluginV2):
             " ".join([""]),
         ]
 
-    def _get_install_command(self) -> Set[str]:
+    def _get_install_command(self) -> List[str]:
         # install to installdir
         cmd = [
             " ".join(['echo "Installing kernel build..."']),
@@ -1535,7 +1518,7 @@ class PluginImpl(PluginV2):
 
         return cmd
 
-    def _get_zfs_build_commands(self) -> Set[str]:
+    def _get_zfs_build_commands(self) -> List[str]:
         # include zfs build steps if required
         if self.options.kernel_enable_zfs_support:
             return [
@@ -1581,10 +1564,9 @@ class PluginImpl(PluginV2):
                 " ".join(['echo "Rebuilding module dependencies"']),
                 " ".join(["depmod -b ${SNAPCRAFT_PART_INSTALL} ${release_version}"]),
             ]
-        else:
-            return [
-                " ".join(['echo "Not building zfs modules"']),
-            ]
+        return [
+            " ".join(['echo "Not building zfs modules"']),
+        ]
 
     def get_build_commands(self) -> List[str]:
         click.echo("Getting build commands...")
