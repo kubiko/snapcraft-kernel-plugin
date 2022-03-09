@@ -159,6 +159,7 @@ import click
 import logging
 import os
 import sys
+import re
 
 from snapcraft import ProjectOptions
 from typing import Any, Dict, List, Set
