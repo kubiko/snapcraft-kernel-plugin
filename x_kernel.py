@@ -371,7 +371,7 @@ class PluginImpl(PluginV2):
         self.make_cmd = ["make", "-j$(nproc)"]
         # we are building out of tree, configure paths
         self.make_cmd.append("-C")
-        self.make_cmd.append("$SNAPCRAFT_PART_SRC")
+        self.make_cmd.append("${KERNEL_SRC}")
         self.make_cmd.append("O=${SNAPCRAFT_PART_BUILD}")
 
         self._check_cross_compilation()
@@ -1056,13 +1056,13 @@ class PluginImpl(PluginV2):
             " ".join(
                 [
                     "\t"
-                    "branch=$(cut -d'.' -f 2- < ${SNAPCRAFT_PART_SRC}/debian/debian.env)",
+                    "branch=$(cut -d'.' -f 2- < ${KERNEL_SRC}/debian/debian.env)",
                 ]
             ),
-            " ".join(["\tbaseconfigdir=${SNAPCRAFT_PART_SRC}/debian.${branch}/config"]),
+            " ".join(["\tbaseconfigdir=${KERNEL_SRC}/debian.${branch}/config"]),
             " ".join(
                 [
-                    "\tarchconfigdir=${SNAPCRAFT_PART_SRC}/debian.${branch}/config/${DEB_ARCH}"
+                    "\tarchconfigdir=${KERNEL_SRC}/debian.${branch}/config/${DEB_ARCH}"
                 ]
             ),
             " ".join(["\tcommonconfig=${baseconfigdir}/config.common.ports"]),
@@ -1534,7 +1534,7 @@ class PluginImpl(PluginV2):
                 " ".join(
                     [
                         "./configure",
-                        "--with-linux=${SNAPCRAFT_PART_SRC}",
+                        "--with-linux=${KERNEL_SRC}",
                         "--with-linux-obj=${SNAPCRAFT_PART_BUILD}",
                         "--with-config=kernel",
                     ]
@@ -1572,9 +1572,11 @@ class PluginImpl(PluginV2):
     def get_build_commands(self) -> List[str]:
         click.echo("Getting build commands...")
         self._configure_compiler()
+        # kernel source can be either SNAPCRAFT_PART_SRC or SNAPCRAFT_PROJECT_DIR
         return [
+            " ".join(['[ -d ${SNAPCRAFT_PART_SRC}/kernel ] && KERNEL_SRC=${SNAPCRAFT_PART_SRC} || KERNEL_SRC=${SNAPCRAFT_PROJECT_DIR}']),
             " ".join(['echo "PATH=$PATH"']),
-            " ".join(['echo "SNAPCRAFT_PART_SRC=$SNAPCRAFT_PART_SRC"']),
+            " ".join(['echo "KERNEL_SRC=${KERNEL_SRC}"']),
             " ".join([""]),
             *self._link_files_fnc_cmd(),
             " ".join([""]),
