@@ -1097,8 +1097,6 @@ class PluginImpl(PluginV2):
         # elif kconfigflavour is provided, assemble the ubuntu.flavour config
         # otherwise use defconfig to seed the base config
         if self.options.kconfigfile:
-            # This file gets modified, no hard links here
-            file_utils.copy(self.options.kconfigfile, config_path)
             cmd.extend(
                 [
                     " ".join(
