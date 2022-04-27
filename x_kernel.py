@@ -528,9 +528,21 @@ class PluginImpl(PluginV2):
             " ".join(['\tlocal found=""']),
             " ".join(["\tfor f in $(ls ${1}/${2})"]),
             " ".join(["\tdo"]),
+            " ".join(['\t\tif [[ -L "${f}" ]]; then']),
             " ".join(
                 [
-                    "\t\tlocal rel_path=$(",
+                    "\t\t\tlocal rel_path=$(",
+                    "realpath",
+                    "--no-symlinks",
+                    "--relative-to=${1}",
+                    "${f}",
+                    ")",
+                ]
+            ),
+            " ".join(["\t\telse"]),
+            " ".join(
+                [
+                    "\t\t\tlocal rel_path=$(",
                     "realpath",
                     "-se",
                     "--relative-to=${1}",
@@ -538,6 +550,7 @@ class PluginImpl(PluginV2):
                     ")",
                 ]
             ),
+            " ".join(["\t\tfi"]),
             " ".join(["\t\tlocal dir_path=$(dirname ${rel_path})"]),
             " ".join(["\t\tmkdir -p ${3}/${dir_path}"]),
             " ".join(['\t\techo "installing ${f} to ${3}/${dir_path}"']),
