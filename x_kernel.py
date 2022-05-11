@@ -434,9 +434,11 @@ class PluginImpl(PluginV2):
         # as work around check if we are cross building, to know what is
         # target arch
         self.target_arch = None
-        for arg in sys.argv:
-            if arg.startswith("--target-arch="):
-                self.target_arch = arg.split("=")[1]
+        for i in range(1, len(sys.argv)):
+            if sys.argv[i].startswith("--target-arch="):
+                self.target_arch = sys.argv[i].split("=")[1]
+            elif sys.argv[i].startswith("--target-arch"):
+                self.target_arch = sys.argv[i+1]
 
         if self.target_arch is None:
             # TDDO: there is bug in snapcraft, use uname
