@@ -407,7 +407,7 @@ class PluginImpl(PluginV2):
             else:
                 flavour = ""
         else:
-            flavour = f"-{self.options.kernel_initrd_channel}"
+            flavour = f"-{self.options.kernel_initrd_channel}".replace("/", "+")
 
         # determine type of initrd
         initrd_snap_file_name = _INITRD_SNAP_FILE.format(
