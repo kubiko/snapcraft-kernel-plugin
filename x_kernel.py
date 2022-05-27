@@ -1550,6 +1550,7 @@ class PluginImpl(PluginV2):
                         "--with-linux=${KERNEL_SRC}",
                         "--with-linux-obj=${SNAPCRAFT_PART_BUILD}",
                         "--with-config=kernel",
+                        "--host=${SNAPCRAFT_ARCH_TRIPLET}",
                     ]
                 ),
                 " ".join(["make -j$(nproc)"]),
