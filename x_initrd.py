@@ -833,6 +833,7 @@ class PluginImpl(PluginV2):
             " ".join(
                 [
                     "rm",
+                    "-f",
                     "${SNAPCRAFT_PART_INSTALL}/modules/*/build",
                     "${SNAPCRAFT_PART_INSTALL}/modules/*/source",
                 ]
