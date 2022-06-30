@@ -41,6 +41,15 @@ The following initrd specific options are provided by this plugin:
       provide the core boot logic which comes from snappy Ubuntu Core
       OS snap. Include all modules you need for mounting rootfs here.
 
+    - kernel-initrd-configured-modules:
+      (array of string)
+      list of modules to be added to the initrd
+      /lib/modules-load.d/ubuntu-core-initramfs.conf config
+      to be automatically loaded.
+      Configured modules are atomatically added to the kernel-initrd-modules
+      If modules in question is not supported by the kernel, it's automatically
+      removed
+
     - kernel-initrd-firmware:
       (array of string)
       list of firmware files to be included in the initrd; these need to be
@@ -140,6 +149,13 @@ class PluginImpl(PluginV2):
                     "default": "",
                 },
                 "kernel-initrd-modules": {
+                    "type": "array",
+                    "minitems": 1,
+                    "uniqueItems": True,
+                    "items": {"type": "string"},
+                    "default": [],
+                },
+                "kernel-initrd-configured-modules": {
                     "type": "array",
                     "minitems": 1,
                     "uniqueItems": True,
