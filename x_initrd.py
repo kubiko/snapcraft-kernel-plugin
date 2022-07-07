@@ -106,6 +106,10 @@ The following initrd specific options are provided by this plugin:
       During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-addon}
       Default: none
+
+    - kernel-release
+      Optional string to override the parsed kernel version.
+      Default: automatically determined
 """
 
 import click
@@ -207,6 +211,10 @@ class PluginImpl(PluginV2):
                 "kernel-build-efi-image": {
                     "type": "boolean",
                     "default": False,
+                },
+                "kernel-release": {
+                    "type": "string",
+                    "default": "",
                 },
             },
         }
@@ -768,13 +776,15 @@ class PluginImpl(PluginV2):
         return cmd
 
     def _parse_kernel_release_cmd(self) -> List[str]:
+        # If the kernel release wasn't specified, automatically determine it
+        if len(self.options.kernel_release) == 0:
+            return [
+                'echo "Parsing created kernel release..."',
+                'KERNEL_RELEASE=$(basename $(ls ${SNAPCRAFT_PART_INSTALL}/boot/vmlinuz-*) | cut -f 2- -d-)',
+            ]
         return [
-            " ".join(['echo "Parsing created kernel release..."']),
-            " ".join(
-                [
-                    "KERNEL_RELEASE=$(cat ${SNAPCRAFT_PART_INSTALL}/usr/src/linux-headers-*/include/config/kernel.release)",
-                ]
-            ),
+            f'echo "Using specified kernel release: {self.options.kernel_release}"',
+            f'KERNEL_RELEASE="{self.options.kernel_release}"',
         ]
 
     def _copy_vmlinuz_cmd(self) -> List[str]:
