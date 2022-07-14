@@ -17,7 +17,7 @@
 """The kernel plugin allows building kernel snaps
 with all the bells and whistles in one shot...
 
-The following kernel specific options are provided by this plugin:
+The following kernel-specific options are provided by this plugin:
 
     - kdefconfig:
       (list of kdefconfigs)
@@ -28,12 +28,12 @@ The following kernel specific options are provided by this plugin:
       path to file to use as base configuration. If provided this option wins
       over everything else. default: None
 
-    - kconfigflavour
+    - kconfigflavour:
       (string)
       Ubuntu config flavour to use as base configuration. If provided this
       option wins over kdefconfig. default: None
 
-    - kconfigs
+    - kconfigs:
       (list of strings)
       explicit list of configs to force; this will override the configs that
       were set as base through kdefconfig and kconfigfile and dependent configs
@@ -52,7 +52,7 @@ The following kernel specific options are provided by this plugin:
 
     - kernel-with-firmware:
       (boolean; default: True)
-      use this flag to disable shipping binary firmwares
+      use this flag to disable shipping binary firmwares.
 
     - kernel-device-trees:
       (array of string)
@@ -60,23 +60,23 @@ The following kernel specific options are provided by this plugin:
 
     - kernel-build-efi-image
       Optional, true if we want to create an EFI image, false otherwise (false
-      by default)
+      by default).
 
     - kernel-compiler
       (string; default:)
-      Optional, define compiler to use, by default gcc compiler is used
-      Orher permited compilers: clang
+      Optional, define compiler to use, by default gcc compiler is used.
+      Other permitted compilers: clang
 
     - kernel-compiler-paths
       (array of strings)
       Optional, define the compiler path to be added to the PATH.
       Path is relative to the stage directory.
-      Default value is empty
+      Default value is empty.
 
     - kernel-compiler-parameters
       (array of string)
-      Optional, define extra compiler parameters to be passed to the compiler
-      Default value is empty
+      Optional, define extra compiler parameters to be passed to the compiler.
+      Default value is empty.
 
     - kernel-initrd-modules:
       (array of string)
@@ -89,15 +89,15 @@ The following kernel specific options are provided by this plugin:
       list of modules to be added to the initrd
       /lib/modules-load.d/ubuntu-core-initramfs.conf config
       to be automatically loaded.
-      Configured modules are atomatically added to the kernel-initrd-modules
-      If modules in question is not supported by the kernel, it's automatically
-      removed
+      Configured modules are automatically added to kernel-initrd-modules.
+      If module in question is not supported by the kernel, it's automatically
+      removed.
 
     - kernel-initrd-firmware:
       (array of string)
       list of firmware files to be included in the initrd; these need to be
       relative paths to stage directory.
-      <stage/part instal dir>/firmware/* -> initrd:/lib/firmware/*
+      <stage/part install dir>/firmware/* -> initrd:/lib/firmware/*
 
     - kernel-initrd-compression:
       (string; default: lz4)
@@ -112,23 +112,23 @@ The following kernel specific options are provided by this plugin:
         xz:  -7
 
     - kernel-initrd-channel
-      Optional channel for uc-inird snap. Track is based on project's build-base
+      Optional channel for uc-initrd snap. Track is based on project's build-base
       This option is ignored if kernel-initrd-base-url is used!
       Default: stable
 
     - kernel-initrd-base-url
-      Optional base url to be used to download reference inird from.
+      Optional base url to be used to download reference initrd from.
       e.g. https://people.canonical.com/~okubik/uc-initrds
       Default: none
 
     - kernel-initrd-flavour
-      Optional parameter(Default flavour is none).
+      Optional parameter (Default flavour is none).
       This can be used only together with kernel-initrd-base-url to specify
       additional initrd flavour to download. Assembled url is:
       {kernel-initrd-base-url}/{uc-initrd}_{series}{flavour}_{architecture}.snap
 
     - kernel-initrd-overlay
-      Optional overlay to be applied to built initrd
+      Optional overlay to be applied to built initrd.
       This option is designed to provide easy way to apply initrd overlay for
       cases modifies initrd scripts for pre uc20 initrds.
       Value is relative path, in stage directory. and related part needs to be
@@ -140,12 +140,12 @@ The following kernel specific options are provided by this plugin:
       (array of string)
       Optional list of files to be added to the initrd.
       Function is similar to kernel-initrd-overlay, only it works on per file
-      selection without need to have overlay in dedicated directory.
-      This option is designed to provide easy way to add additonal content
+      selection without a need to have overlay in dedicated directory.
+      This option is designed to provide easy way to add additional content
       to initrd for cases like full disk encryption support, when device
       specific hook needs to be added to the initrd.
       Values are relative path from stage directory, so related part(s)
-      needs to be built before kernel part.
+      need to be built before kernel part.
       During build it will be expanded to
       ${SNAPCRAFT_STAGE}/{initrd-addon}
       Default: none
