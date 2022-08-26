@@ -153,6 +153,10 @@ The following kernel-specific options are provided by this plugin:
     - kernel-enable-zfs-support
       (boolean; default: False)
       use this flag to build in zfs support through extra ko modules
+
+    - kernel-enable-perf
+      (boolean; default: False)
+      use this flag to build the perf binary
 """
 
 import click
@@ -355,6 +359,10 @@ class PluginImpl(PluginV2):
                     "default": [],
                 },
                 "kernel-enable-zfs-support": {
+                    "type": "boolean",
+                    "default": False,
+                },
+                "kernel-enable-perf": {
                     "type": "boolean",
                     "default": False,
                 },
@@ -1583,7 +1591,39 @@ class PluginImpl(PluginV2):
             " ".join(['echo "Not building zfs modules"']),
         ]
 
-    def get_build_commands(self) -> List[str]:
+    def _get_perf_build_commands(self) -> List[str]:
+        if self.options.kernel_enable_perf:
+            outdir = '"${SNAPCRAFT_PART_BUILD}/tools/perf"'
+            mkdir_cmd = [
+                'mkdir',
+                '-p',
+                outdir,
+            ]
+            make_cmd = self.make_cmd.copy()
+            perf_cmd = [
+                # Override source and build directories
+                '-C',
+                '"${SNAPCRAFT_PART_SRC}/tools/perf"',
+                f'O={outdir}',
+            ]
+            make_cmd += perf_cmd
+            install_cmd = [
+                'install',
+                '-Dm0755',
+                '"${SNAPCRAFT_PART_BUILD}/tools/perf/perf"',
+                '"${SNAPCRAFT_PART_INSTALL}/bin/perf"',
+            ]
+            return [
+                'echo "Building perf binary..."',
+                ' '.join(mkdir_cmd),
+                ' '.join(make_cmd),
+                ' '.join(install_cmd),
+            ]
+        return [
+            'echo "Not building perf binary"',
+        ]
+
+    def get_build_commands(self)  -> List[str]:
         click.echo("Getting build commands...")
         self._configure_compiler()
         # kernel source can be either SNAPCRAFT_PART_SRC or SNAPCRAFT_PROJECT_DIR
@@ -1609,6 +1649,8 @@ class PluginImpl(PluginV2):
             *self._get_install_command(),
             " ".join(["\n"]),
             *self._get_zfs_build_commands(),
+            " ".join(["\n"]),
+            *self._get_perf_build_commands(),
             " ".join(["\n"]),
             " ".join(['echo "Kernel build finished!"']),
         ]
