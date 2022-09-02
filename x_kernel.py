@@ -1,4 +1,5 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+# pylint: disable=line-too-long,missing-function-docstring,import-error,too-many-lines,missing-class-docstring,attribute-defined-outside-init,too-many-instance-attributes
 #
 # Copyright (C) 2016-2018,2020 Canonical Ltd
 #
@@ -148,14 +149,13 @@ The following kernel-specific options are provided by this plugin:
        use this flag to build the perf binary
 """
 
-import click
 import os
-import sys
 import re
-
-from snapcraft import ProjectOptions
+import sys
 from typing import Any, Dict, List, Set
 
+import click
+from snapcraft import ProjectOptions
 from snapcraft.plugins.v2 import PluginV2
 
 _compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz"}
@@ -390,7 +390,7 @@ class PluginImpl(PluginV2):
             if sys.argv[i].startswith("--target-arch="):
                 self.target_arch = sys.argv[i].split("=")[1]
             elif sys.argv[i].startswith("--target-arch"):
-                self.target_arch = sys.argv[i+1]
+                self.target_arch = sys.argv[i + 1]
 
         if self.target_arch is None:
             # TDDO: there is bug in snapcraft, use uname
@@ -550,7 +550,7 @@ class PluginImpl(PluginV2):
             '\t"-o" "Dir::Etc=${apt_dir}"',
             '\t"-o" "Dir::Etc::sourcelist=$sources_p"',
             '\t\t"-o" "Dir::Cache=$${stage_dir}/var/cache/apt"',
-            '\t\t'"-o" "Dir::State=${stage_dir}",
+            '\t\t"-o" "Dir::State=${stage_dir}"',
             '\t"-o" "Dir::State::status=$status_p"',
             '\t\t"-o" "pkgCacheGen::Essential=none")',
             "\tmkdir -p ${apt_dir}/preferences.d",
@@ -970,7 +970,7 @@ class PluginImpl(PluginV2):
 
     def _compression_cmd(self) -> str:
         if not self.options.kernel_initrd_compression:
-            return
+            return ""
         compressor = _compression_command[self.options.kernel_initrd_compression]
         options = ""
         if self.options.kernel_initrd_compression_options:
@@ -1237,8 +1237,8 @@ class PluginImpl(PluginV2):
         builtin = []
         modules = []
         # tokenize .config and store options in builtin[] or modules[]
-        with open(config_path, encoding="utf8") as f:
-            for line in f:
+        with open(config_path, encoding="utf8") as file:
+            for line in file:
                 tok = line.strip().split("=")
                 items = len(tok)
                 if items == 2:
@@ -1447,11 +1447,12 @@ class PluginImpl(PluginV2):
 
         # check if there is custom path to be included
         if self.options.kernel_compiler_paths:
-            for p in self.options.kernel_compiler_paths:
-                custom_path = "{}{}:".format(
-                    os.path.join("${SNAPCRAFT_STAGE}", p), custom_path
-                )
-            env["PATH"] = (f"{self.custom_path}:$PATH")
+            custom_paths = [
+                os.path.join("${SNAPCRAFT_STAGE}", f)
+                for f in self.options.kernel_compiler_paths
+            ]
+            path = custom_paths + [env["PATH"], ]
+            env["PATH"] = ":".join(path)
 
         if "MAKEFLAGS" in os.environ:
             makeflags = re.sub(r"-I[\S]*", "", os.environ["MAKEFLAGS"])
@@ -1482,13 +1483,12 @@ class PluginImpl(PluginV2):
 
     def _get_install_command(self) -> List[str]:
         # install to installdir
+        make_cmd = self.make_cmd.copy()
+        make_cmd += ["CONFIG_PREFIX=${SNAPCRAFT_PART_INSTALL}", ]
+        make_cmd += self.make_install_targets
         cmd = [
             'echo "Installing kernel build..."',
-            " ".join(
-                self.make_cmd
-                + ["CONFIG_PREFIX=${SNAPCRAFT_PART_INSTALL}"]
-                + self.make_install_targets
-            ),
+            " ".join(make_cmd),
         ]
 
         # add post install steps
