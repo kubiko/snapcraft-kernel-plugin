@@ -1475,12 +1475,13 @@ class PluginImpl(PluginV2):
             "bc",
             "gcc",
             "cmake",
-            "kmod",
-            "xz-utils",
+            "dracut",
+            "initramfs-tools",
             "initramfs-tools-core",
-            "systemd",
+            "kmod",
             "lz4",
-            "curl",
+            "systemd",
+            "xz-utils",
         }
         if self.options.kernel_enable_zfs_support:
             build_packages |= {
