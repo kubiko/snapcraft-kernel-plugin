@@ -471,26 +471,26 @@ class PluginImpl(PluginV2):
             " ".join(
                 ["# 1: reference dir, 2: file(s) including wild cards, 3: dst dir"]
             ),
-            " ".join(["link_files() {"]),
-            " ".join(['\tif [ "${2}" = "*" ]; then']),
-            " ".join(["\t\tfor f in $(ls ${1})"]),
-            " ".join(["\t\tdo"]),
-            " ".join(["\t\t\tlink_files ${1} ${f} ${3}"]),
-            " ".join(["\t\tdone"]),
-            " ".join(["\t\treturn 0"]),
-            " ".join(["\tfi"]),
-            " ".join(["\tif [ -d ${1}/${2} ]; then"]),
-            " ".join(["\t\tfor f in $(ls ${1}/${2})"]),
-            " ".join(["\t\tdo"]),
-            " ".join(["\t\t\tlink_files ${1} ${2}/${f} ${3}"]),
-            " ".join(["\t\tdone"]),
-            " ".join(["\t\treturn 0"]),
-            " ".join(["\tfi"]),
-            " ".join([""]),
-            " ".join(['\tlocal found=""']),
-            " ".join(["\tfor f in $(ls ${1}/${2})"]),
-            " ".join(["\tdo"]),
-            " ".join(['\t\tif [[ -L "${f}" ]]; then']),
+            "link_files() {",
+            '\tif [ "${2}" = "*" ]; then',
+            "\t\tfor f in $(ls ${1})",
+            "\t\tdo",
+            "\t\t\tlink_files ${1} ${f} ${3}",
+            "\t\tdone",
+            "\t\treturn 0",
+            "\tfi",
+            "\tif [ -d ${1}/${2} ]; then",
+            "\t\tfor f in $(ls ${1}/${2})",
+            "\t\tdo",
+            "\t\t\tlink_files ${1} ${2}/${f} ${3}",
+            "\t\tdone",
+            "\t\treturn 0",
+            "\tfi",
+            "",
+            '\tlocal found=""',
+            "\tfor f in $(ls ${1}/${2})",
+            "\tdo",
+            '\t\tif [[ -L "${f}" ]]; then',
             " ".join(
                 [
                     "\t\t\tlocal rel_path=$(",
@@ -501,7 +501,7 @@ class PluginImpl(PluginV2):
                     ")",
                 ]
             ),
-            " ".join(["\t\telse"]),
+            "\t\telse",
             " ".join(
                 [
                     "\t\t\tlocal rel_path=$(",
@@ -512,63 +512,63 @@ class PluginImpl(PluginV2):
                     ")",
                 ]
             ),
-            " ".join(["\t\tfi"]),
-            " ".join(["\t\tlocal dir_path=$(dirname ${rel_path})"]),
-            " ".join(["\t\tmkdir -p ${3}/${dir_path}"]),
-            " ".join(['\t\techo "installing ${f} to ${3}/${dir_path}"']),
-            " ".join(["\t\tln -f ${f} ${3}/${dir_path}"]),
-            " ".join(['\t\tfound="yes"']),
-            " ".join(["\tdone"]),
-            " ".join(['\tif [ "yes" = "${found}" ]; then']),
-            " ".join(["\t\treturn 0"]),
-            " ".join(["\telse"]),
-            " ".join(["\t\treturn 1"]),
-            " ".join(["\tfi"]),
-            " ".join(["}"]),
+            "\t\tfi",
+            "\t\tlocal dir_path=$(dirname ${rel_path})",
+            "\t\tmkdir -p ${3}/${dir_path}",
+            '\t\techo "installing ${f} to ${3}/${dir_path}"',
+            "\t\tln -f ${f} ${3}/${dir_path}",
+            '\t\tfound="yes"',
+            "\tdone",
+            '\tif [ "yes" = "${found}" ]; then',
+            "\t\treturn 0",
+            "\telse",
+            "\t\treturn 1",
+            "\tfi",
+            "}",
         ]
 
     def _download_core_initrd_fnc_cmd(self) -> List[str]:
         return [
-            " ".join(["# Helper to download code initrd dep package"]),
+            "# Helper to download code initrd dep package",
             " ".join(["# 1: tmp dir, 2: arch, 3: release, 4: output dir"]),
-            " ".join(["download_core_initrd() {"]),
-            " ".join(["\tlocal tmp_dir=${1}"]),
-            " ".join(["\tlocal dpkg_arch=${2}"]),
-            " ".join(["\tlocal release=${3}"]),
-            " ".join(["\tlocal output_dir=${4}"]),
-            " ".join(["\tlocal apt_dir=${tmp_dir}/apt"]),
-            " ".join(["\tlocal sources_p=${apt_dir}/ppa.list"]),
-            " ".join(["\tlocal stage_dir=${apt_dir}/stage"]),
-            " ".join(["\tlocal status_p=${stage_dir}/status"]),
-            " ".join(['\tmkdir -p "${stage_dir}"']),
-            " ".join(['\ttouch "${status_p}"']),
-            " ".join(['\tcat > "${sources_p}" <<EOF']),
+            "download_core_initrd() {",
+            "\tlocal tmp_dir=${1}",
+            "\tlocal dpkg_arch=${2}",
+            "\tlocal release=${3}",
+            "\tlocal output_dir=${4}",
+            "\tlocal apt_dir=${tmp_dir}/apt",
+            "\tlocal sources_p=${apt_dir}/ppa.list",
+            "\tlocal stage_dir=${apt_dir}/stage",
+            "\tlocal status_p=${stage_dir}/status",
+            '\tmkdir -p "${stage_dir}"',
+            '\ttouch "${status_p}"',
+            '\tcat > "${sources_p}" <<EOF',
             " ".join(
                 ["deb https://ppa.launchpadcontent.net/snappy-dev/image/ubuntu ${release} main"]),
-            " ".join(["EOF"]),
-            " ".join(["\tlocal apt_options=("]),
-            " ".join(['\t\t"-o" "APT::Architecture=$dpkg_arch"']),
-            " ".join(['\t\t"-o" "APT::Get::AllowUnauthenticated=true"']),
-            " ".join(['\t\t"-o" "Acquire::AllowInsecureRepositories=true"']),
-            " ".join(['\t"-o" "Dir::Etc=${apt_dir}"']),
-            " ".join(['\t"-o" "Dir::Etc::sourcelist=$sources_p"']),
-            " ".join(['\t\t"-o" "Dir::Cache=$${stage_dir}/var/cache/apt"']),
-            " ".join(['\t\t'"-o" "Dir::State=${stage_dir}"]),
-            " ".join(['\t"-o" "Dir::State::status=$status_p"']),
-            " ".join(['\t\t"-o" "pkgCacheGen::Essential=none")']),
-            " ".join(["\tmkdir -p ${apt_dir}/preferences.d"]),
-            " ".join(['\tapt update "${apt_options[@]}"']),
+            "EOF",
+            "\tlocal apt_options=(",
+            '\t\t"-o" "APT::Architecture=$dpkg_arch"',
+            '\t\t"-o" "APT::Get::AllowUnauthenticated=true"',
+            '\t\t"-o" "Acquire::AllowInsecureRepositories=true"',
+            '\t"-o" "Dir::Etc=${apt_dir}"',
+            '\t"-o" "Dir::Etc::sourcelist=$sources_p"',
+            '\t\t"-o" "Dir::Cache=$${stage_dir}/var/cache/apt"',
+            '\t\t'"-o" "Dir::State=${stage_dir}",
+            '\t"-o" "Dir::State::status=$status_p"',
+            '\t\t"-o" "pkgCacheGen::Essential=none")',
+            "\tmkdir -p ${apt_dir}/preferences.d",
+            '\tapt update "${apt_options[@]}"',
             " ".join(
                 ['\tapt download "${apt_options[@]}" ubuntu-core-initramfs']),
-            " ".join([""]),
-            " ".join(["# unpack dep to the target dir"]),
-            " ".join(["\tdpkg -x ubuntu-core-initramfs_*.deb ${output_dir}"]),
-            " ".join(["}"]),
+            "",
+            "# unpack dep to the target dir",
+            "\tdpkg -x ubuntu-core-initramfs_*.deb ${output_dir}",
+            "}",
         ]
 
     def _download_generic_initrd_cmd(self) -> List[str]:
         return [
-            " ".join(['echo "Geting ubuntu-core-initrd...."']),
+            'echo "Geting ubuntu-core-initrd...."',
             # only download u-c-initrd deb if needed
             " ".join(
                 [
@@ -584,12 +584,12 @@ class PluginImpl(PluginV2):
                     "${UC_INITRD_DEB}",
                 ]
             ),
-            " ".join(["fi"]),
+            "fi",
         ]
 
     def _download_snapd_snap_cmd(self) -> List[str]:
         cmd_download_snapd_snap = [
-            " ".join(['\techo "Downloading snapd snap from snap store"']),
+            '\techo "Downloading snapd snap from snap store"',
             " ".join(
                 [
                     f"\tUBUNTU_STORE_ARCH={self.initrd_arch}",
@@ -616,7 +616,7 @@ class PluginImpl(PluginV2):
         ]
 
         return [
-            " ".join(['echo "Geting snapd snap for snap bootstrap..."']),
+            'echo "Geting snapd snap for snap bootstrap..."',
             # only download again if files does not exist, otherwise
             # assume we are re-running build
             " ".join(
@@ -625,15 +625,15 @@ class PluginImpl(PluginV2):
                 ]
             ),
             *cmd_download_snapd_snap,
-            " ".join(["fi"]),
+            "fi",
         ]
 
     def _clone_zfs_cmd(self) -> List[str]:
         # clone zfs if needed
         if self.options.kernel_enable_zfs_support:
             return [
-                " ".join(["if [ ! -d ${SNAPCRAFT_PART_BUILD}/zfs ]; then"]),
-                " ".join(['\techo "clonning zfs..."']),
+                "if [ ! -d ${SNAPCRAFT_PART_BUILD}/zfs ]; then",
+                '\techo "clonning zfs..."',
                 " ".join(
                     [
                         "\tgit",
@@ -645,10 +645,10 @@ class PluginImpl(PluginV2):
                         "master",
                     ]
                 ),
-                " ".join(["fi"]),
+                "fi",
             ]
         return [
-            " ".join(['echo "zfs is not enabled"']),
+            'echo "zfs is not enabled"',
         ]
 
     def _make_initrd_cmd(self) -> List[str]:
@@ -664,13 +664,13 @@ class PluginImpl(PluginV2):
 
         cmd_prepare_modules_feature = [
             # install required modules to initrd
-            " ".join(['echo "Installing ko modules to initrd..."']),
-            " ".join(['install_modules=""']),
-            " ".join(['echo "Gathering module dependencies..."']),
-            " ".join(['install_modules=""']),
+            'echo "Installing ko modules to initrd..."',
+            'install_modules=""',
+            'echo "Gathering module dependencies..."',
+            'install_modules=""',
             " ".join(
                 ["uc_initrd_feature_kernel_modules=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/kernel-modules"]),
-            " ".join(["mkdir -p ${uc_initrd_feature_kernel_modules}"]),
+            "mkdir -p ${uc_initrd_feature_kernel_modules}",
             " ".join(
                 ['initramfs_ko_modules_conf=${uc_initrd_feature_kernel_modules}/extra-kernel-modules.conf']),
             " ".join(
@@ -681,7 +681,7 @@ class PluginImpl(PluginV2):
                     f"{' '.join(self.options.kernel_initrd_modules)} {' '.join(self.options.kernel_initrd_configured_modules)}",
                 ]
             ),
-            " ".join(["do"]),
+            "do",
             " ".join(
                 [
                     "\techo",
@@ -690,7 +690,7 @@ class PluginImpl(PluginV2):
                     "${initramfs_ko_modules_conf}"
                 ]
             ),
-            " ".join(["done"]),
+            "done",
             " ".join(
                 [
                     "[",
@@ -717,19 +717,19 @@ class PluginImpl(PluginV2):
                 ),
                 " ".join(
                     ['initramfs_conf_dir=${uc_initrd_feature_kernel_modules}/usr/lib/modules-load.d']),
-                " ".join(['mkdir -p ${initramfs_conf_dir}']),
+                'mkdir -p ${initramfs_conf_dir}',
                 " ".join(
                     [
                         "initramfs_conf=${initramfs_conf_dir}/ubuntu-core-initramfs.conf"
                     ]
                 ),
-                " ".join(['echo "# configures modules" > ${initramfs_conf}']),
+                'echo "# configures modules" > ${initramfs_conf}',
                 " ".join(
                     [
                         f"for m in {' '.join(self.options.kernel_initrd_configured_modules)}",
                     ]
                 ),
-                " ".join(["do"]),
+                "do",
                 " ".join(
                     [
                         "\tif [",
@@ -738,22 +738,22 @@ class PluginImpl(PluginV2):
                         "]; then",
                     ]
                 ),
-                " ".join(["\t\techo ${m} >> ${initramfs_conf}"]),
-                " ".join(["\tfi"]),
-                " ".join(["done"]),
+                "\t\techo ${m} >> ${initramfs_conf}",
+                "\tfi",
+                "done",
             ]
         )
 
         # gather firmware files
         cmd_prepare_initrd_overlay_feature = [
-            " ".join(['echo "Installing initrd overlay firmware..."']),
+            'echo "Installing initrd overlay firmware..."',
             " ".join(
                 ["uc_initrd_feature_firmware=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/uc-firmware"]),
-            " ".join(["mkdir -p ${uc_initrd_feature_firmware}"]),
+            "mkdir -p ${uc_initrd_feature_firmware}",
             " ".join(
                 [f"for f in {' '.join(self.options.kernel_initrd_firmware)}"]
             ),
-            " ".join(["do"]),
+            "do",
             # firmware can be from kernel build or from stage
             # firmware from kernel build takes preference
             " ".join(
@@ -779,9 +779,9 @@ class PluginImpl(PluginV2):
                 ]
             ),
             " ".join(['\t\t\techo "Missing firmware [${f}], ignoring it"']),
-            " ".join(["\t\tfi"]),
-            " ".join(["\tfi"]),
-            " ".join(["done"]),
+            "\t\tfi",
+            "\tfi",
+            "done",
         ]
 
         cmd_prepare_initrd_overlay_feature.extend(
@@ -789,7 +789,7 @@ class PluginImpl(PluginV2):
                 " ".join(""),
                 " ".join(
                     ["uc_initrd_feature_overlay=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/uc-overlay"]),
-                " ".join(["mkdir -p ${uc_initrd_feature_overlay}"]),
+                "mkdir -p ${uc_initrd_feature_overlay}",
             ]
         )
         # apply overlay if defined
@@ -804,7 +804,7 @@ class PluginImpl(PluginV2):
                             "${uc_initrd_feature_overlay}",
                         ]
                     ),
-                    " ".join([""]),
+                    "",
                 ]
             )
 
@@ -812,11 +812,11 @@ class PluginImpl(PluginV2):
         if self.options.kernel_initrd_addons:
             cmd_prepare_initrd_overlay_feature.extend(
                 [
-                    " ".join(['echo "Installing initrd addons..."']),
+                    'echo "Installing initrd addons..."',
                     " ".join(
                         [f"for a in {' '.join(self.options.kernel_initrd_addons)}"]
                     ),
-                    " ".join(["do"]),
+                    "do",
                     " ".join(
                         [
                             "\techo",
@@ -831,16 +831,16 @@ class PluginImpl(PluginV2):
                             "${uc_initrd_feature_overlay}",
                         ]
                     ),
-                    " ".join(["done"]),
+                    "done",
                 ],
             )
 
         cmd_prepare_snap_bootstrap_feature = [
             # install selected snap bootstrap
-            " ".join(['echo "Preparing snap-boostrap initrd feature..."']),
+            'echo "Preparing snap-boostrap initrd feature..."',
             " ".join(
                 ["uc_initrd_feature_snap_bootstratp=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/snap-bootstrap"]),
-            " ".join(["mkdir -p ${uc_initrd_feature_snap_bootstratp}"]),
+            "mkdir -p ${uc_initrd_feature_snap_bootstratp}",
             " ".join(
                 [
                     "link_files",
@@ -873,14 +873,14 @@ class PluginImpl(PluginV2):
                     "/dev/null; then",
                 ]
             ),
-            " ".join(["\trm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*"]),
-            " ".join(["fi"]),
+            "\trm -rf ${SNAPCRAFT_PART_INSTALL}/initrd.img*",
+            "fi",
         ]
 
         cmd_create_initrd.extend(
             [
-                " ".join([""]),
-                " ".join([""]),
+                "",
+                "",
                 " ".join(
                     ["ubuntu_core_initramfs=${UC_INITRD_DEB}/usr/bin/ubuntu-core-initramfs"]),
             ],
@@ -892,7 +892,7 @@ class PluginImpl(PluginV2):
         if comp_command:
             cmd_create_initrd.extend(
                 [
-                    " ".join([""]),
+                    "",
                     " ".join(
                         [
                             "echo",
@@ -911,7 +911,7 @@ class PluginImpl(PluginV2):
             )
         cmd_create_initrd.extend(
             [
-                " ".join(['echo "Workaround for bug in ubuntu-core-initramfs"']),
+                'echo "Workaround for bug in ubuntu-core-initramfs"',
                 " ".join(
                     [
                         "for",
@@ -923,7 +923,7 @@ class PluginImpl(PluginV2):
                         "uc-overlay",
                     ],
                 ),
-                " ".join(["do"]),
+                "do",
                 " ".join(
                     [
                         "\tlink_files",
@@ -932,15 +932,15 @@ class PluginImpl(PluginV2):
                         "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/main"
                     ],
                 ),
-                " ".join(["done"]),
-                " ".join([""]),
+                "done",
+                "",
             ],
         )
 
         if self.options.kernel_build_efi_image:
             cmd_create_initrd.extend(
                 [
-                    " ".join([""]),
+                    "",
                     " ".join(
                         ["stub_p=$(find ${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/efi/ -maxdepth 1 -name 'linux*.efi.stub' -printf '%f\n')"]),
                     " ".join(
@@ -970,7 +970,7 @@ class PluginImpl(PluginV2):
         else:
             cmd_create_initrd.extend(
                 [
-                    " ".join([""]),
+                    "",
                     " ".join(
                         [
                             "${ubuntu_core_initramfs}",
@@ -1006,12 +1006,12 @@ class PluginImpl(PluginV2):
         return [
             *cmd_echo,
             *cmd_prepare_modules_feature,
-            " ".join([""]),
+            "",
             *cmd_prepare_initrd_overlay_feature,
-            " ".join([""]),
+            "",
             *cmd_prepare_snap_bootstrap_feature,
-            " ".join([""]),
-            " ".join(['echo "Create new initrd..."']),
+            "",
+            'echo "Create new initrd..."',
             *cmd_create_initrd,
         ]
 
@@ -1033,7 +1033,7 @@ class PluginImpl(PluginV2):
 
     def _parse_kernel_release_cmd(self) -> List[str]:
         return [
-            " ".join(['echo "Parsing created kernel release..."']),
+            'echo "Parsing created kernel release..."',
             " ".join(
                 [
                     "KERNEL_RELEASE=$(cat ${SNAPCRAFT_PART_BUILD}/include/config/kernel.release)",
@@ -1043,7 +1043,7 @@ class PluginImpl(PluginV2):
 
     def _copy_vmlinuz_cmd(self) -> List[str]:
         cmd = [
-            " ".join(['echo "Copying kernel image..."']),
+            'echo "Copying kernel image..."',
             # if kernel already exists, replace it, we are probably re-runing
             # build
             " ".join(
@@ -1074,7 +1074,7 @@ class PluginImpl(PluginV2):
 
     def _copy_system_map_cmd(self) -> List[str]:
         cmd = [
-            " ".join(['echo "Copying System map..."']),
+            'echo "Copying System map..."',
             " ".join(
                 [
                     "[ -e ${SNAPCRAFT_PART_INSTALL}/System.map ]",
@@ -1095,11 +1095,11 @@ class PluginImpl(PluginV2):
 
     def _copy_dtbs_cmd(self) -> List[str]:
         if not self.options.kernel_device_trees:
-            return [" ".join([""])]
+            return [""]
 
         cmd = [
-            " ".join(['echo "Copying custom dtbs..."']),
-            " ".join(["mkdir -p ${SNAPCRAFT_PART_INSTALL}/dtbs"]),
+            'echo "Copying custom dtbs..."',
+            "mkdir -p ${SNAPCRAFT_PART_INSTALL}/dtbs",
         ]
         for dtb in self.dtbs:
             # Strip any subdirectories
@@ -1126,7 +1126,7 @@ class PluginImpl(PluginV2):
         flavour = self.options.kconfigflavour
         click.echo(f"Using ubuntu config flavour {flavour}")
         cmd = [
-            " ".join(['\techo "Assembling Ubuntu config..."']),
+            '\techo "Assembling Ubuntu config..."',
             " ".join(
                 [
                     "\t"
@@ -1140,8 +1140,8 @@ class PluginImpl(PluginV2):
                     "\tarchconfigdir=${KERNEL_SRC}/debian.${branch}/config/${DEB_ARCH}"
                 ]
             ),
-            " ".join(["\tcommonconfig=${baseconfigdir}/config.common.ports"]),
-            " ".join(["\tubuntuconfig=${baseconfigdir}/config.common.ubuntu"]),
+            "\tcommonconfig=${baseconfigdir}/config.common.ports",
+            "\tubuntuconfig=${baseconfigdir}/config.common.ubuntu",
             " ".join(
                 ["\tarchconfig=${archconfigdir}/config.common.${DEB_ARCH}"]),
             " ".join(
@@ -1165,8 +1165,8 @@ class PluginImpl(PluginV2):
         # if the parts build dir already contains a .config file,
         # use it
         cmd = [
-            " ".join(['echo "Preparing config..."']),
-            " ".join(["if [ ! -e ${SNAPCRAFT_PART_BUILD}/.config ]; then"]),
+            'echo "Preparing config..."',
+            "if [ ! -e ${SNAPCRAFT_PART_BUILD}/.config ]; then",
         ]
 
         # if kconfigfile is provided use that
@@ -1203,7 +1203,7 @@ class PluginImpl(PluginV2):
                 ]
             )
         # close if statement
-        cmd.extend([" ".join(["fi"])])
+        cmd.extend(["fi"])
         return cmd
 
     def _do_patch_config_cmd(self) -> List[str]:
@@ -1220,7 +1220,7 @@ class PluginImpl(PluginV2):
         # only way to convince all kbuild versions to pick up the
         # configs during oldconfig in .config
         return [
-            " ".join(['echo "Appling extra config...."']),
+            'echo "Appling extra config...."',
             " ".join(
                 [
                     f"echo '{config}'",
@@ -1257,7 +1257,7 @@ class PluginImpl(PluginV2):
         make_cmd = self.make_cmd.copy()
         make_cmd[1] = "-j1"
         return [
-            " ".join(['echo "Remaking oldconfig...."']),
+            'echo "Remaking oldconfig...."',
             " ".join(
                 [
                     "bash -c ' yes \"\"",
@@ -1270,15 +1270,15 @@ class PluginImpl(PluginV2):
     def _get_configure_command(self) -> List[str]:
         return [
             *self._do_base_config_cmd(),
-            " ".join(["\n"]),
+            "\n",
             *self._do_patch_config_cmd(),
-            " ".join([""]),
+            "",
             *self._do_remake_config_cmd(),
         ]
 
     def _call_check_config_cmd(self) -> List[str]:
         return [
-            " ".join(['echo "Checking config for expected options..."']),
+            'echo "Checking config for expected options..."',
             " ".join(
                 [
                     sys.executable,
@@ -1371,8 +1371,8 @@ class PluginImpl(PluginV2):
 
     def _clean_old_build_cmd(self) -> List[str]:
         return [
-            " ".join([""]),
-            " ".join(['echo "Cleaning previous build first..."']),
+            "",
+            'echo "Cleaning previous build first..."',
             " ".join(
                 [
                     "[ -e ${SNAPCRAFT_PART_INSTALL}/modules ]",
@@ -1391,8 +1391,8 @@ class PluginImpl(PluginV2):
 
     def _arrange_install_dir_cmd(self) -> List[str]:
         return [
-            " ".join([""]),
-            " ".join(['echo "Finalizing install directory..."']),
+            "",
+            'echo "Finalizing install directory..."',
             # upstream kernel installs under $INSTALL_MOD_PATH/lib/modules/
             # but snapd expects modules/ and firmware/
             " ".join(
@@ -1443,8 +1443,8 @@ class PluginImpl(PluginV2):
     def _install_config_cmd(self) -> List[str]:
         # install .config as config-$version
         return [
-            " ".join([""]),
-            " ".join(['echo "Installing kernel config..."']),
+            "",
+            'echo "Installing kernel config..."',
             " ".join(
                 [
                     "ln",
@@ -1523,29 +1523,29 @@ class PluginImpl(PluginV2):
 
     def _get_build_command(self) -> List[str]:
         return [
-            " ".join(['echo "Building kernel..."']),
+            'echo "Building kernel..."',
             " ".join(self.make_cmd + self.make_targets),
         ]
 
     def _get_post_install_cmd(self) -> List[str]:
         return [
-            " ".join(["\n"]),
+            "\n",
             *self._parse_kernel_release_cmd(),
-            " ".join(["\n"]),
+            "\n",
             *self._copy_vmlinuz_cmd(),
-            " ".join([""]),
+            "",
             *self._copy_system_map_cmd(),
-            " ".join([""]),
+            "",
             *self._copy_dtbs_cmd(),
-            " ".join([""]),
+            "",
             *self._make_initrd_cmd(),
-            " ".join([""]),
+            "",
         ]
 
     def _get_install_command(self) -> List[str]:
         # install to installdir
         cmd = [
-            " ".join(['echo "Installing kernel build..."']),
+            'echo "Installing kernel build..."',
             " ".join(
                 self.make_cmd
                 + ["CONFIG_PREFIX=${SNAPCRAFT_PART_INSTALL}"]
@@ -1569,14 +1569,14 @@ class PluginImpl(PluginV2):
         # include zfs build steps if required
         if self.options.kernel_enable_zfs_support:
             return [
-                " ".join(['echo "Building zfs modules..."']),
+                'echo "Building zfs modules..."',
                 " ".join(
                     [
                         "cd",
                         "${SNAPCRAFT_PART_BUILD}/zfs",
                     ]
                 ),
-                " ".join(["./autogen.sh"]),
+                "./autogen.sh",
                 " ".join(
                     [
                         "./configure",
@@ -1586,7 +1586,7 @@ class PluginImpl(PluginV2):
                         "--host=${SNAPCRAFT_ARCH_TRIPLET}",
                     ]
                 ),
-                " ".join(["make -j$(nproc)"]),
+                "make -j$(nproc)",
                 " ".join(
                     [
                         "make",
@@ -1610,12 +1610,12 @@ class PluginImpl(PluginV2):
                         "${SNAPCRAFT_PART_INSTALL}/zfs",
                     ]
                 ),
-                " ".join(['echo "Rebuilding module dependencies"']),
+                'echo "Rebuilding module dependencies"',
                 " ".join(
                     ["depmod -b ${SNAPCRAFT_PART_INSTALL} ${release_version}"]),
             ]
         return [
-            " ".join(['echo "Not building zfs modules"']),
+            'echo "Not building zfs modules"',
         ]
 
     def _get_perf_build_commands(self) -> List[str]:
@@ -1657,35 +1657,35 @@ class PluginImpl(PluginV2):
         return [
             " ".join(
                 ['[ -d ${SNAPCRAFT_PART_SRC}/kernel ] && KERNEL_SRC=${SNAPCRAFT_PART_SRC} || KERNEL_SRC=${SNAPCRAFT_PROJECT_DIR}']),
-            " ".join(['echo "PATH=$PATH"']),
-            " ".join(['echo "KERNEL_SRC=${KERNEL_SRC}"']),
-            " ".join([""]),
+            'echo "PATH=$PATH"',
+            'echo "KERNEL_SRC=${KERNEL_SRC}"',
+            "",
             *self._link_files_fnc_cmd(),
-            " ".join([""]),
+            "",
             *self._download_core_initrd_fnc_cmd(),
-            " ".join([""]),
-            " ".join([""]),
+            "",
+            "",
             *self._download_generic_initrd_cmd(),
-            " ".join([""]),
+            "",
             *self._download_snapd_snap_cmd(),
-            " ".join([""]),
+            "",
             *self._clone_zfs_cmd(),
-            " ".join([""]),
+            "",
             *self._clean_old_build_cmd(),
-            " ".join(["\n"]),
+            "\n",
             *self._get_configure_command(),
-            # " ".join(["\n"]),
+            # "\n",
             # *self._call_check_config_cmd(),
-            " ".join(["\n"]),
+            "\n",
             *self._get_build_command(),
-            " ".join(["\n"]),
+            "\n",
             *self._get_install_command(),
-            " ".join(["\n"]),
+            "\n",
             *self._get_zfs_build_commands(),
-            " ".join(["\n"]),
+            "\n",
             *self._get_perf_build_commands(),
-            " ".join(["\n"]),
-            " ".join(['echo "Kernel build finished!"']),
+            "\n",
+            'echo "Kernel build finished!"',
         ]
 
     @property
