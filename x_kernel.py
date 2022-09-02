@@ -1412,6 +1412,7 @@ class PluginImpl(PluginV2):
             "gcc",
             "cmake",
             "dracut",
+            "dracut-core",
             "initramfs-tools",
             "initramfs-tools-core",
             "kmod",
