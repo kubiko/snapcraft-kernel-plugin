@@ -17,6 +17,31 @@
 """The kernel plugin allows building kernel snaps
 with all the bells and whistles in one shot...
 
+The general purpose of a Snapcraft plugin is to customize the following
+properties as defined in the snapcraft source file
+https://github.com/snapcore/snapcraft/blob/main/snapcraft_legacy/plugins/v2/_plugin.py
+
+
+class PluginV2(abc.ABC):
+    def get_schema(cls) -> Dict[str, Any]:
+
+    @abc.abstractmethod
+    def get_build_snaps(self) -> Set[str]:
+
+    @abc.abstractmethod
+    def get_build_packages(self) -> Set[str]:
+
+    @abc.abstractmethod
+    def get_build_environment(self) -> Dict[str, str]:
+
+    @abc.abstractmethod
+    def get_build_commands(self) -> List[str]:
+
+    @property
+    def out_of_source_build(self):
+        return True/False
+
+
 The following kernel-specific options are provided by this plugin:
 
     - kdefconfig:
