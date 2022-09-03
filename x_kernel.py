@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""The kernel plugin allows building kernel snaps
+"""This kernel plugin allows building kernel snaps
 with all the bells and whistles in one shot...
 
 The general purpose of a Snapcraft plugin is to customize the following
@@ -590,7 +590,7 @@ class PluginImpl(PluginV2):
 
     def _download_generic_initrd_cmd(self) -> List[str]:
         return [
-            'echo "Geting ubuntu-core-initrd...."',
+            'echo "Getting ubuntu-core-initrd...."',
             # only download u-c-initrd deb if needed
             "if [ ! -e ${UC_INITRD_DEB} ]; then",
             " ".join(
@@ -607,7 +607,7 @@ class PluginImpl(PluginV2):
 
     def _download_snapd_snap_cmd(self) -> List[str]:
         cmd_download_snapd_snap = [
-            '\techo "Downloading snapd snap from snap store"',
+            '\techo "Downloading snapd from snap store"',
             " ".join(
                 [
                     f"\tUBUNTU_STORE_ARCH={self.initrd_arch}",
@@ -647,7 +647,7 @@ class PluginImpl(PluginV2):
         if self.options.kernel_enable_zfs_support:
             return [
                 "if [ ! -d ${SNAPCRAFT_PART_BUILD}/zfs ]; then",
-                '\techo "clonning zfs..."',
+                '\techo "cloning zfs..."',
                 " ".join(
                     [
                         "\tgit",
@@ -720,7 +720,7 @@ class PluginImpl(PluginV2):
         cmd_prepare_modules_feature.extend(
             [
                 'echo "Configuring ubuntu-core-initramfs.conf with supported modules"',
-                'echo "If modules is not included in initrd, do not include it"',
+                'echo "If module is not included in initrd, do not include it"',
                 'initramfs_conf_dir=${uc_initrd_feature_kernel_modules}/usr/lib/modules-load.d',
                 'mkdir -p ${initramfs_conf_dir}',
                 "initramfs_conf=${initramfs_conf_dir}/ubuntu-core-initramfs.conf",
@@ -1019,7 +1019,7 @@ class PluginImpl(PluginV2):
     def _copy_vmlinuz_cmd(self) -> List[str]:
         cmd = [
             'echo "Copying kernel image..."',
-            # if kernel already exists, replace it, we are probably re-runing
+            # if kernel already exists, replace it, we are probably re-running
             # build
             " ".join(
                 [
@@ -1182,7 +1182,7 @@ class PluginImpl(PluginV2):
         # only way to convince all kbuild versions to pick up the
         # configs during oldconfig in .config
         return [
-            'echo "Appling extra config...."',
+            'echo "Applying extra config...."',
             " ".join(
                 [
                     f"echo '{config}'",
@@ -1364,7 +1364,7 @@ class PluginImpl(PluginV2):
                     "${SNAPCRAFT_PART_INSTALL}/",
                 ]
             ),
-            # remove sym links modules/*/build and modules/*/source
+            # remove symlinks modules/*/build and modules/*/source
             " ".join(
                 [
                     "rm",
@@ -1383,7 +1383,7 @@ class PluginImpl(PluginV2):
                     "${SNAPCRAFT_PART_INSTALL}",
                 ]
             ),
-            # create sym links for modules and firmware for convenience
+            # create symlinks for modules and firmware for convenience
             " ".join(
                 [
                     "ln",
@@ -1418,7 +1418,7 @@ class PluginImpl(PluginV2):
         ]
 
     def _configure_compiler(self) -> None:
-        # check if we gcc or another compiler
+        # check if we are using gcc or another compiler
         if self.options.kernel_compiler:
             # at the moment only clang is supported as alternative, warn otherwise
             if self.options.kernel_compiler != "clang":
@@ -1525,7 +1525,7 @@ class PluginImpl(PluginV2):
             " ".join(make_cmd),
         ]
 
-        # add post install steps
+        # add post-install steps
         cmd.extend(
             self._get_post_install_cmd(),
         )
