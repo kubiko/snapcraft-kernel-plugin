@@ -1435,16 +1435,16 @@ class PluginImpl(PluginV2):
     def get_build_packages(self) -> Set[str]:
         build_packages = {
             "bc",
+            "binutils",
             "gcc",
             "cmake",
+            "cryptsetup",
             "dracut",
             "dracut-core",
-            "initramfs-tools",
-            "initramfs-tools-core",
             "kmod",
+            "kpartx",
             "lz4",
             "systemd",
-            "xz-utils",
         }
         # install correct initramfs compression tool
         if self.options.kernel_initrd_compression == "lz4":
