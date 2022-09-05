@@ -128,7 +128,7 @@ The following kernel-specific options are provided by this plugin:
     - kernel-initrd-compression:
       (string; default: as defined in ubuntu-core-initrd(lz4)
       initrd compression to use; the only supported values now are
-      'lz4', 'xz', 'gz'.
+      'lz4', 'xz', 'gz', 'zstd'.
 
     - kernel-initrd-compression-options:
       Optional list of parameters to be passed to compressor used for initrd
@@ -136,6 +136,7 @@ The following kernel-specific options are provided by this plugin:
         gz:  -7
         lz4: -9 -l
         xz:  -7
+        zstd: -1 -T0
 
     - kernel-initrd-channel
       Optional channel for snapd snap to pick snap-bootstrap from.
@@ -183,8 +184,8 @@ import click
 from snapcraft import ProjectOptions
 from snapcraft.plugins.v2 import PluginV2
 
-_compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz"}
-_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7"}
+_compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz", "zstd": "zstd"}
+_compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7", "zstd": "-1 -T0"}
 _SNAPD_SNAP_NAME = "snapd"
 _SNAPD_SNAP_FILE = "{snap_name}_{architecture}.snap"
 _ZFS_URL = "https://github.com/openzfs/zfs"
@@ -316,7 +317,7 @@ class PluginImpl(PluginV2):
                 },
                 "kernel-initrd-compression": {
                     "type": "string",
-                    "enum": ["lz4", "xz", "gz"],
+                    "enum": ["lz4", "xz", "gz", "zstd"],
                 },
                 "kernel-initrd-compression-options": {
                     "type": "array",
@@ -1445,6 +1446,14 @@ class PluginImpl(PluginV2):
             "systemd",
             "xz-utils",
         }
+        # install correct initramfs compression tool
+        if self.options.kernel_initrd_compression == "lz4":
+            build_packages |= {"lz4"}
+        elif self.options.kernel_initrd_compression == "xz":
+            build_packages |= {"xz-utils"}
+        elif self.options.kernel_initrd_compression == "zstd":
+            build_packages |= {"zstd"}
+
         if self.options.kernel_enable_zfs_support:
             build_packages |= {
                 "autoconf",
