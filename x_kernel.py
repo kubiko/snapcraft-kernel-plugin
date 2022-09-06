@@ -1439,7 +1439,6 @@ class PluginImpl(PluginV2):
             "gcc",
             "cmake",
             "cryptsetup",
-            "dracut",
             "dracut-core",
             "kmod",
             "kpartx",
