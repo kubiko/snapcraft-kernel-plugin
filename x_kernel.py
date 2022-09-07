@@ -392,7 +392,6 @@ class PluginImpl(PluginV2):
 
         # TO-DO: where do we get base?
         self.uc_series = "20"
-        self.u_series = "focal"
 
         # determine type of initrd
         snapd_snap_file_name = _SNAPD_SNAP_FILE.format(
@@ -552,37 +551,24 @@ class PluginImpl(PluginV2):
     def _download_core_initrd_fnc_cmd(self) -> List[str]:
         return [
             "# Helper to download code initrd dep package",
-            "# 1: tmp dir, 2: arch, 3: release, 4: output dir",
+            "# 1: arch, 2: output dir",
             "download_core_initrd() {",
-            "\tlocal tmp_dir=${1}",
-            "\tlocal dpkg_arch=${2}",
-            "\tlocal release=${3}",
-            "\tlocal output_dir=${4}",
-            "\tlocal apt_dir=${tmp_dir}/apt",
-            "\tlocal sources_p=${apt_dir}/ppa.list",
-            "\tlocal stage_dir=${apt_dir}/stage",
-            "\tlocal status_p=${stage_dir}/status",
-            '\tmkdir -p "${stage_dir}"',
-            '\ttouch "${status_p}"',
-            '\tcat > "${sources_p}" <<EOF',
-            "deb https://ppa.launchpadcontent.net/snappy-dev/image/ubuntu ${release} main",
-            "EOF",
-            "\tlocal apt_options=(",
-            '\t\t"-o" "APT::Architecture=$dpkg_arch"',
-            '\t\t"-o" "APT::Get::AllowUnauthenticated=true"',
-            '\t\t"-o" "Acquire::AllowInsecureRepositories=true"',
-            '\t"-o" "Dir::Etc=${apt_dir}"',
-            '\t"-o" "Dir::Etc::sourcelist=$sources_p"',
-            '\t\t"-o" "Dir::Cache=$${stage_dir}/var/cache/apt"',
-            '\t\t"-o" "Dir::State=${stage_dir}"',
-            '\t"-o" "Dir::State::status=$status_p"',
-            '\t\t"-o" "pkgCacheGen::Essential=none")',
-            "\tmkdir -p ${apt_dir}/preferences.d",
-            '\tapt update "${apt_options[@]}"',
-            '\tapt download "${apt_options[@]}" ubuntu-core-initramfs',
+            "# check if we have defined ppa, to have consistent error message for fail",
+            'if [ -z "$(apt-cache search ubuntu-core-initramfs)" ]; then',
+            '\techo "Missing package-repositories declaration in snapcracft.yaml, add following definition:"',
+            '\techo -e "package-repositories:\n    - type: apt\n    ppa: snappy-dev/image"',
+            "\texit 1",
+            "fi",
             "",
+            " ".join(
+                [
+                    "\tapt-get",
+                    "download",
+                    "ubuntu-core-initramfs:${1}",
+                ]
+            ),
             "# unpack dep to the target dir",
-            "\tdpkg -x ubuntu-core-initramfs_*.deb ${output_dir}",
+            "\tdpkg -x ubuntu-core-initramfs_*.deb ${2}",
             "}",
         ]
 
@@ -594,9 +580,7 @@ class PluginImpl(PluginV2):
             " ".join(
                 [
                     "\tdownload_core_initrd",
-                    "${UC_INITRD_TMP_DIR}",
                     self.target_arch,
-                    self.u_series,
                     "${UC_INITRD_DEB}",
                 ]
             ),
@@ -1470,7 +1454,6 @@ class PluginImpl(PluginV2):
             "CROSS_COMPILE": "${SNAPCRAFT_ARCH_TRIPLET}-",
             "ARCH": self.kernel_arch,
             "DEB_ARCH": "${SNAPCRAFT_TARGET_ARCH}",
-            "UC_INITRD_TMP_DIR": "${SNAPCRAFT_PART_BUILD}/ubuntu-core-initramfs-tmp",
             "UC_INITRD_DEB": "${SNAPCRAFT_PART_BUILD}/ubuntu-core-initramfs",
             "SNAPD_UNPACKED_SNAP": "${SNAPCRAFT_PART_BUILD}/unpacked_snapd_snap",
             "KERNEL_BUILD_ARCH_DIR": "${SNAPCRAFT_PART_BUILD}/arch/${ARCH}/boot",
