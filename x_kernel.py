@@ -390,8 +390,6 @@ class PluginImpl(PluginV2):
         self._check_cross_compilation()
         self._set_kernel_targets()
 
-        self.initrd_arch = self.target_arch
-
         # TO-DO: where do we get base?
         self.uc_series = "20"
         self.u_series = "focal"
@@ -399,7 +397,7 @@ class PluginImpl(PluginV2):
         # determine type of initrd
         snapd_snap_file_name = _SNAPD_SNAP_FILE.format(
             snap_name=_SNAPD_SNAP_NAME,
-            architecture=self.initrd_arch,
+            architecture=self.target_arch,
         )
 
         self.snapd_snap = os.path.join(
@@ -597,7 +595,7 @@ class PluginImpl(PluginV2):
                 [
                     "\tdownload_core_initrd",
                     "${UC_INITRD_TMP_DIR}",
-                    self.initrd_arch,
+                    self.target_arch,
                     self.u_series,
                     "${UC_INITRD_DEB}",
                 ]
@@ -610,7 +608,7 @@ class PluginImpl(PluginV2):
             '\techo "Downloading snapd from snap store"',
             " ".join(
                 [
-                    f"\tUBUNTU_STORE_ARCH={self.initrd_arch}",
+                    f"\tUBUNTU_STORE_ARCH={self.target_arch}",
                     "snap",
                     "download",
                     _SNAPD_SNAP_NAME,
