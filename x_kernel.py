@@ -914,70 +914,67 @@ class PluginImpl(PluginV2):
                 "",
             ],
         )
-
+        cmd_create_initrd.extend(
+            [
+                "",
+                " ".join(
+                    [
+                        "${ubuntu_core_initramfs}",
+                        "create-initrd",
+                        "--root",
+                        "${UC_INITRD_DEB}",
+                        "--kernelver=${KERNEL_RELEASE}",
+                        "--kerneldir",
+                        "${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}",
+                        "--firmwaredir",
+                        "${SNAPCRAFT_STAGE}/firmware",
+                        "--skeleton",
+                        "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs",
+                        # "--feature",
+                        # "kernel-modules",
+                        # "snap-bootstrap",
+                        # "uc-firmware",
+                        # "uc-overlay",
+                        "--output",
+                        "${SNAPCRAFT_PART_INSTALL}/initrd.img",
+                    ],
+                ),
+                " ".join(
+                    [
+                        "ln",
+                        "$(ls ${SNAPCRAFT_PART_INSTALL}/initrd.img*)",
+                        "${SNAPCRAFT_PART_INSTALL}/initrd.img"
+                    ]
+                ),
+            ]
+        )
         if self.options.kernel_build_efi_image:
             cmd_create_initrd.extend(
                 [
                     "",
-                    "stub_p=$(find ${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/efi/ -maxdepth 1 -name 'linux*.efi.stub' -printf '%f\n')",
+                    'echo "Building kernel.efi"',
+                    "stub_p=$(find ${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/efi/ -maxdepth 1 -name 'linux*.efi.stub' -printf '%f\\n')",
                     " ".join(
                         [
                             "${ubuntu_core_initramfs}",
                             "create-efi",
                             "--kernelver=${KERNEL_RELEASE}",
-                            "--kerneldir",
-                            "${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}",
-                            "--firmwaredir",
-                            "${SNAPCRAFT_STAGE}/firmware",
+                            "--root",
+                            "${UC_INITRD_DEB}",
                             "--stub",
                             "usr/lib/ubuntu-core-initramfs/efi/${stub_p}",
+                            "",
+                            "--sbat",
+                            "usr/lib/ubuntu-core-initramfs/efi/sbat.txt",
+                            "--initrd",
+                            "${SNAPCRAFT_PART_INSTALL}/initrd.img",
                             "--kernel",
-                            "${SNAPCRAFT_PART_INSTALL}/${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}"
-                            # "--feature",
-                            # "kernel-modules",
-                            # "snap-bootstrap",
-                            # "uc-firmware",
-                            # "uc-overlay",
+                            "${SNAPCRAFT_PART_INSTALL}/${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}",
                             "--output",
                             "${SNAPCRAFT_PART_INSTALL}/kernel.efi",
                         ],
                     ),
                 ],
-            )
-        else:
-            cmd_create_initrd.extend(
-                [
-                    "",
-                    " ".join(
-                        [
-                            "${ubuntu_core_initramfs}",
-                            "create-initrd",
-                            "--root",
-                            "${UC_INITRD_DEB}",
-                            "--kernelver=${KERNEL_RELEASE}",
-                            "--kerneldir",
-                            "${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}",
-                            "--firmwaredir",
-                            "${SNAPCRAFT_STAGE}/firmware",
-                            "--skeleton",
-                            "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs",
-                            # "--feature",
-                            # "kernel-modules",
-                            # "snap-bootstrap",
-                            # "uc-firmware",
-                            # "uc-overlay",
-                            "--output",
-                            "${SNAPCRAFT_PART_INSTALL}/initrd.img",
-                        ],
-                    ),
-                    " ".join(
-                        [
-                            "ln",
-                            "$(ls ${SNAPCRAFT_PART_INSTALL}/initrd.img*)",
-                            "${SNAPCRAFT_PART_INSTALL}/initrd.img"
-                        ]
-                    ),
-                ]
             )
 
         return [
