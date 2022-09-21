@@ -923,7 +923,7 @@ class PluginImpl(PluginV2):
                     " ".join(
                         [
                             "${ubuntu_core_initramfs}",
-                            "create-initrd",
+                            "create-efi",
                             "--kernelver=${KERNEL_RELEASE}",
                             "--kerneldir",
                             "${SNAPCRAFT_PART_INSTALL}/lib/modules/${KERNEL_RELEASE}",
