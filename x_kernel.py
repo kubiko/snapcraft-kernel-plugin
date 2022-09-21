@@ -1116,6 +1116,7 @@ class PluginImpl(PluginV2):
                     "${flavourconfig}",
                     ">",
                     "${SNAPCRAFT_PART_BUILD}/.config",
+                    "2>/dev/null",
                 ]
             ),
         ]
