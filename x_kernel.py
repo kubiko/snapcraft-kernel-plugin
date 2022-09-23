@@ -1,18 +1,18 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 # pylint: disable=line-too-long,missing-function-docstring,import-error,too-many-lines,missing-class-docstring,attribute-defined-outside-init,too-many-instance-attributes
 #
-# Copyright (C) 2016-2018,2020 Canonical Ltd
+# Copyright 2020 Canonical Ltd.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 3 as
-# published by the Free Software Foundation.
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License version 3 as published by the Free Software Foundation.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
+# You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """This kernel plugin allows building kernel snaps
@@ -83,10 +83,6 @@ The following kernel-specific options are provided by this plugin:
     - kernel-device-trees:
       (array of string)
       list of device trees to build, the format is <device-tree-name>.dts.
-
-    - kernel-build-efi-image
-      Optional, true if we want to create an EFI image, false otherwise (false
-      by default).
 
     - kernel-compiler
       (string; default:)
@@ -175,14 +171,17 @@ The following kernel-specific options are provided by this plugin:
        use this flag to build the perf binary
 """
 
+import logging
 import os
 import re
+import subprocess
 import sys
 from typing import Any, Dict, List, Set
 
-import click
-from snapcraft import ProjectOptions
-from snapcraft.plugins.v2 import PluginV2
+from snapcraft_legacy.plugins.v2 import PluginV2
+from snapcraft_legacy.project._project_options import ProjectOptions
+
+logger = logging.getLogger(__name__)
 
 _compression_command = {"gz": "gzip", "lz4": "lz4", "xz": "xz", "zstd": "zstd"}
 _compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7", "zstd": "-1 -T0"}
@@ -221,10 +220,6 @@ required_security = [
     "DEFAULT_SECURITY_APPARMOR",
     "SECCOMP",
     "SECCOMP_FILTER",
-    "CC_STACKPROTECTOR",
-    "CC_STACKPROTECTOR_STRONG",
-    "DEBUG_RODATA",
-    "DEBUG_SET_MODULE_RONX",
 ]
 
 required_snappy = [
@@ -234,7 +229,6 @@ required_snappy = [
     "SQUASHFS",
     "SQUASHFS_XATTR",
     "SQUASHFS_XZ",
-    "DEVPTS_MULTIPLE_INSTANCES",
 ]
 
 required_systemd = [
@@ -260,7 +254,6 @@ required_systemd = [
 required_boot = ["squashfs"]
 
 
-# class KernelPlugin(PluginV2):
 class PluginImpl(PluginV2):
     @classmethod
     def get_schema(cls) -> Dict[str, Any]:
@@ -341,10 +334,6 @@ class PluginImpl(PluginV2):
                     "items": {"type": "string"},
                     "default": [],
                 },
-                "kernel-build-efi-image": {
-                    "type": "boolean",
-                    "default": False,
-                },
                 "kernel-compiler": {
                     "type": "string",
                     "default": "",
@@ -376,7 +365,8 @@ class PluginImpl(PluginV2):
 
     def _init_build_env(self) -> None:
         # first get all the architectures, new v2 plugin is making life difficult
-        click.echo("Initializing build env...")
+        logger.info("Initializing build env...")
+        self._check_build_env()
         self._get_target_architecture()
         self._get_deb_architecture()
         self._get_kernel_architecture()
@@ -390,8 +380,6 @@ class PluginImpl(PluginV2):
         self._check_cross_compilation()
         self._set_kernel_targets()
 
-        # TO-DO: where do we get base?
-        self.uc_series = "20"
         self.u_series = "focal"
 
         # determine type of initrd
@@ -400,14 +388,25 @@ class PluginImpl(PluginV2):
             architecture=self.target_arch,
         )
 
-        self.snapd_snap = os.path.join(
-            "${SNAPCRAFT_PART_BUILD}", snapd_snap_file_name
+        self.snapd_snap = os.path.join("${SNAPCRAFT_PART_BUILD}", snapd_snap_file_name)
+
+    def _check_build_env(self) -> None:
+        """Ensure the environment has set snappy ppa to build kernel snap."""
+        result = subprocess.run(
+            ["apt-cache", "search", "ubuntu-core-initramfs"],
+            check=True,
+            capture_output=True,
+            universal_newlines=True,
         )
+        if result.stdout.find("ubuntu-core-initramfs") == -1:
+            raise logger.error(
+                "Likely missing ppa definition in the snapcraft.yaml.\nPlease ensure following ppa definition is present:\npackage-repositories:\n  - type: apt\n    ppa: snappy-dev/image\n\n ",
+            )
 
     def _get_target_architecture(self) -> None:
-        # self.target_arch = os.getenv("SNAPCRAFT_TARGET_ARCH")
-        # TODO: get better more reliable way to detect target arch
-        # as work around check if we are cross building, to know what is
+        # TODO: there is bug in snapcraft and target arch is not
+        # reported correctly.
+        # As work around check if we are cross building, to know what is
         # target arch
         self.target_arch = None
         for i in range(1, len(sys.argv)):
@@ -417,12 +416,11 @@ class PluginImpl(PluginV2):
                 self.target_arch = sys.argv[i + 1]
 
         if self.target_arch is None:
-            # TDDO: there is bug in snapcraft, use uname
-            # use ProjectOptions().deb_arch instead
-            # self.target_arch = os.getenv("SNAP_ARCH")
+            # this is native build, use deb_arch
+            # as for native build it's reported correctly
             self.target_arch = ProjectOptions().deb_arch
 
-        click.echo(f"Target architecture: {self.target_arch}")
+        logger.info(f"Target architecture: {self.target_arch}")
 
     def _get_kernel_architecture(self) -> None:
         if self.target_arch == "armhf":
@@ -434,7 +432,7 @@ class PluginImpl(PluginV2):
         elif self.target_arch == "amd64":
             self.kernel_arch = "x86"
         else:
-            click.echo("Unknown kernel architecture!!!")
+            logger.error("Unknown kernel architecture!!!")
 
     def _get_deb_architecture(self) -> None:
         if self.target_arch == "armhf":
@@ -446,12 +444,12 @@ class PluginImpl(PluginV2):
         elif self.target_arch == "amd64":
             self.deb_arch = "amd64"
         else:
-            click.echo("Unknown deb architecture!!!")
+            logger.error("Unknown deb architecture!!!")
 
     def _check_cross_compilation(self) -> None:
         host_arch = os.getenv("SNAP_ARCH")
         if host_arch != self.target_arch:
-            click.echo(f"Configuring cross build to {self.kernel_arch}")
+            logger.info(f"Configuring cross build to {self.kernel_arch}")
             self.make_cmd.append(f"ARCH={self.kernel_arch}")
             self.make_cmd.append("CROSS_COMPILE=${SNAPCRAFT_ARCH_TRIPLET}-")
 
@@ -469,14 +467,14 @@ class PluginImpl(PluginV2):
             "INSTALL_MOD_STRIP=1",
             "INSTALL_MOD_PATH=${SNAPCRAFT_PART_INSTALL}",
         ]
-        self.dtbs = [f"{i}.dtb" for i in self.options.kernel_device_trees]
-        if self.dtbs:
-            self.make_targets.extend(self.dtbs)
+        if self.options.kernel_device_trees:
+            self.dtbs = [f"{i}.dtb" for i in self.options.kernel_device_trees]
+            if self.dtbs:
+                self.make_targets.extend(self.dtbs)
         elif self.kernel_arch in ("arm", "arm64", "riscv64"):
             self.make_targets.append("dtbs")
             self.make_install_targets.extend(
-                ["dtbs_install",
-                    "INSTALL_DTBS_PATH=${SNAPCRAFT_PART_INSTALL}/dtbs"]
+                ["dtbs_install", "INSTALL_DTBS_PATH=${SNAPCRAFT_PART_INSTALL}/dtbs"]
             )
         self.make_install_targets.extend(self._get_fw_install_targets())
 
@@ -487,6 +485,26 @@ class PluginImpl(PluginV2):
         return [
             "firmware_install",
             "INSTALL_FW_PATH=${SNAPCRAFT_PART_INSTALL}/lib/firmware",
+        ]
+
+    def _get_initrd_kernel_modules(self) -> List[str]:
+        # collect list of ko to install to the initrd
+        initrd_installed_kernel_modules = ""
+        initrd_configured_kernel_modules = ""
+        if self.options.kernel_initrd_modules:
+            initrd_installed_kernel_modules = (
+                f"{' '.join(self.options.kernel_initrd_modules)}"
+            )
+        if self.options.kernel_initrd_configured_modules:
+            initrd_configured_kernel_modules = (
+                f"{' '.join(self.options.kernel_initrd_configured_modules)}"
+            )
+        return [
+            "# listf of kernel modules to be installed in initrd",
+            f'initrd_installed_kernel_modules="{initrd_installed_kernel_modules}"',
+            "# listf of kernel modules in initrd to be auto loaded by",
+            "# any module in this list implies to be added to initrd",
+            f'initrd_configured_kernel_modules="{initrd_configured_kernel_modules}"',
         ]
 
     def _link_files_fnc_cmd(self) -> List[str]:
@@ -626,13 +644,13 @@ class PluginImpl(PluginV2):
                     self.snapd_snap,
                     "usr/lib/snapd/snap-bootstrap",
                     "usr/lib/snapd/info",
-                    "meta"
+                    "meta",
                 ]
             ),
         ]
 
         return [
-            'echo "Geting snapd snap for snap bootstrap..."',
+            'echo "Getting snapd snap for snap bootstrap..."',
             # only download again if files does not exist, otherwise
             # assume we are re-running build
             f"if [ ! -e {self.snapd_snap} ]; then",
@@ -664,7 +682,6 @@ class PluginImpl(PluginV2):
         ]
 
     def _make_initrd_cmd(self) -> List[str]:
-
         cmd_echo = [
             " ".join(
                 [
@@ -682,24 +699,18 @@ class PluginImpl(PluginV2):
             'install_modules=""',
             "uc_initrd_feature_kernel_modules=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/kernel-modules",
             "mkdir -p ${uc_initrd_feature_kernel_modules}",
-            'initramfs_ko_modules_conf=${uc_initrd_feature_kernel_modules}/extra-kernel-modules.conf',
+            "initramfs_ko_modules_conf=${uc_initrd_feature_kernel_modules}/extra-kernel-modules.conf",
             " ".join(
                 [
                     "for",
                     "m",
                     "in",
-                    f"{' '.join(self.options.kernel_initrd_modules)} {' '.join(self.options.kernel_initrd_configured_modules)}",
+                    "${initrd_installed_kernel_modules}",
+                    "${initrd_configured_kernel_modules}",
                 ]
             ),
             "do",
-            " ".join(
-                [
-                    "\techo",
-                    "${m}",
-                    ">>",
-                    "${initramfs_ko_modules_conf}"
-                ]
-            ),
+            " ".join(["\techo", "${m}", ">>", "${initramfs_ko_modules_conf}"]),
             "done",
             " ".join(
                 [
@@ -719,11 +730,18 @@ class PluginImpl(PluginV2):
             [
                 'echo "Configuring ubuntu-core-initramfs.conf with supported modules"',
                 'echo "If module is not included in initrd, do not include it"',
-                'initramfs_conf_dir=${uc_initrd_feature_kernel_modules}/usr/lib/modules-load.d',
-                'mkdir -p ${initramfs_conf_dir}',
+                "initramfs_conf_dir=${uc_initrd_feature_kernel_modules}/usr/lib/modules-load.d",
+                "mkdir -p ${initramfs_conf_dir}",
                 "initramfs_conf=${initramfs_conf_dir}/ubuntu-core-initramfs.conf",
                 'echo "# configures modules" > ${initramfs_conf}',
-                f"for m in {' '.join(self.options.kernel_initrd_configured_modules)}",
+                " ".join(
+                    [
+                        "for",
+                        "m",
+                        "in",
+                        "${initrd_configured_kernel_modules}",
+                    ]
+                ),
                 "do",
                 " ".join(
                     [
@@ -739,50 +757,53 @@ class PluginImpl(PluginV2):
             ]
         )
 
-        # gather firmware files
         cmd_prepare_initrd_overlay_feature = [
-            'echo "Installing initrd overlay firmware..."',
             "uc_initrd_feature_firmware=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/uc-firmware",
             "mkdir -p ${uc_initrd_feature_firmware}",
-            f"for f in {' '.join(self.options.kernel_initrd_firmware)}",
-            "do",
-            # firmware can be from kernel build or from stage
-            # firmware from kernel build takes preference
-            " ".join(
-                [
-                    "\tif !",
-                    "link_files",
-                    "${SNAPCRAFT_PART_INSTALL}",
-                    "${f}",
-                    "${uc_initrd_feature_firmware}/lib",
-                    ";",
-                    "then",
-                ]
-            ),
-            " ".join(
-                [
-                    "\t\tif !",
-                    "link_files",
-                    "${SNAPCRAFT_STAGE}",
-                    "${f}",
-                    "${uc_initrd_feature_firmware}/lib",
-                    ";",
-                    "then",
-                ]
-            ),
-            '\t\t\techo "Missing firmware [${f}], ignoring it"',
-            "\t\tfi",
-            "\tfi",
-            "done",
+            "uc_initrd_feature_overlay=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/uc-overlay",
+            "mkdir -p ${uc_initrd_feature_overlay}",
+            "",
         ]
 
-        cmd_prepare_initrd_overlay_feature.extend(
-            [
-                "",
-                "uc_initrd_feature_overlay=${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/uc-overlay",
-                "mkdir -p ${uc_initrd_feature_overlay}",
-            ]
-        )
+        # gather firmware files
+        if self.options.kernel_initrd_firmware:
+            cmd_prepare_initrd_overlay_feature.extend(
+                [
+                    'echo "Installing initrd overlay firmware..."',
+                    f"for f in {' '.join(self.options.kernel_initrd_firmware)}",
+                    "do",
+                    # firmware can be from kernel build or from stage
+                    # firmware from kernel build takes preference
+                    " ".join(
+                        [
+                            "\tif !",
+                            "link_files",
+                            "${SNAPCRAFT_PART_INSTALL}",
+                            "${f}",
+                            "${uc_initrd_feature_firmware}/lib",
+                            ";",
+                            "then",
+                        ]
+                    ),
+                    " ".join(
+                        [
+                            "\t\tif !",
+                            "link_files",
+                            "${SNAPCRAFT_STAGE}",
+                            "${f}",
+                            "${uc_initrd_feature_firmware}/lib",
+                            ";",
+                            "then",
+                        ]
+                    ),
+                    '\t\t\techo "Missing firmware [${f}], ignoring it"',
+                    "\t\tfi",
+                    "\tfi",
+                    "done",
+                    "",
+                ]
+            )
+
         # apply overlay if defined
         if self.options.kernel_initrd_overlay:
             cmd_prepare_initrd_overlay_feature.extend(
@@ -846,7 +867,7 @@ class PluginImpl(PluginV2):
                     "${SNAPD_UNPACKED_SNAP}/usr/lib/snapd/info",
                     "${SNAPCRAFT_PART_INSTALL}/snapd-info",
                 ]
-            )
+            ),
         ]
 
         cmd_create_initrd = [
@@ -865,7 +886,10 @@ class PluginImpl(PluginV2):
                 "",
                 "",
                 " ".join(
-                    ["ubuntu_core_initramfs=${UC_INITRD_DEB}/usr/bin/ubuntu-core-initramfs"]),
+                    [
+                        "ubuntu_core_initramfs=${UC_INITRD_DEB}/usr/bin/ubuntu-core-initramfs"
+                    ]
+                ),
             ],
         )
 
@@ -907,7 +931,7 @@ class PluginImpl(PluginV2):
                         "\tlink_files",
                         "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/${feature}",
                         '"*"',
-                        "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/main"
+                        "${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/main",
                     ],
                 ),
                 "done",
@@ -943,39 +967,11 @@ class PluginImpl(PluginV2):
                     [
                         "ln",
                         "$(ls ${SNAPCRAFT_PART_INSTALL}/initrd.img*)",
-                        "${SNAPCRAFT_PART_INSTALL}/initrd.img"
+                        "${SNAPCRAFT_PART_INSTALL}/initrd.img",
                     ]
                 ),
             ]
         )
-        if self.options.kernel_build_efi_image:
-            cmd_create_initrd.extend(
-                [
-                    "",
-                    'echo "Building kernel.efi"',
-                    "stub_p=$(find ${UC_INITRD_DEB}/usr/lib/ubuntu-core-initramfs/efi/ -maxdepth 1 -name 'linux*.efi.stub' -printf '%f\\n')",
-                    " ".join(
-                        [
-                            "${ubuntu_core_initramfs}",
-                            "create-efi",
-                            "--kernelver=${KERNEL_RELEASE}",
-                            "--root",
-                            "${UC_INITRD_DEB}",
-                            "--stub",
-                            "usr/lib/ubuntu-core-initramfs/efi/${stub_p}",
-                            "",
-                            "--sbat",
-                            "usr/lib/ubuntu-core-initramfs/efi/sbat.txt",
-                            "--initrd",
-                            "${SNAPCRAFT_PART_INSTALL}/initrd.img",
-                            "--kernel",
-                            "${SNAPCRAFT_PART_INSTALL}/${KERNEL_IMAGE_TARGET}-${KERNEL_RELEASE}",
-                            "--output",
-                            "${SNAPCRAFT_PART_INSTALL}/kernel.efi",
-                        ],
-                    ),
-                ],
-            )
 
         return [
             *cmd_echo,
@@ -995,14 +991,12 @@ class PluginImpl(PluginV2):
         compressor = _compression_command[self.options.kernel_initrd_compression]
         options = ""
         if self.options.kernel_initrd_compression_options:
-            for opt in self.options.kernel_initrd_compression_options:
-                options = f"{options} {opt}"
+            options = f"{' '.join(self.options.kernel_initrd_compression_options)}"
         else:
             options = _compressor_options[self.options.kernel_initrd_compression]
 
         cmd = f"{compressor} {options}"
-        click.echo(
-            f"WARNING: Using custom initrd compressions command: {cmd!r}")
+        logger.warning(f"WARNING: Using custom initrd compressions command: {cmd!r}")
         return cmd
 
     def _parse_kernel_release_cmd(self) -> List[str]:
@@ -1075,7 +1069,7 @@ class PluginImpl(PluginV2):
             # Strip any subdirectories
             subdir_index = dtb.rfind("/")
             if subdir_index > 0:
-                install_dtb = dtb[subdir_index + 1:]
+                install_dtb = dtb[subdir_index + 1 :]
             else:
                 install_dtb = dtb
 
@@ -1094,7 +1088,7 @@ class PluginImpl(PluginV2):
 
     def _assemble_ubuntu_config_cmd(self) -> List[str]:
         flavour = self.options.kconfigflavour
-        click.echo(f"Using ubuntu config flavour {flavour}")
+        logger.info(f"Using ubuntu config flavour {flavour}")
         cmd = [
             '\techo "Assembling Ubuntu config..."',
             "\tbranch=$(cut -d'.' -f 2- < ${KERNEL_SRC}/debian/debian.env)",
@@ -1218,7 +1212,7 @@ class PluginImpl(PluginV2):
             'echo "Remaking oldconfig...."',
             " ".join(
                 [
-                    "bash -c ' yes \"\"",
+                    'bash -c \' yes ""',
                     "|| true'",
                     f"| {' '.join(make_cmd)} oldconfig",
                 ]
@@ -1242,90 +1236,14 @@ class PluginImpl(PluginV2):
                     sys.executable,
                     "-I",
                     os.path.abspath(__file__),
-                    "check-new-config",
-                    "--config-path",
+                    "check_new_config",
                     "${SNAPCRAFT_PART_BUILD}/.config",
+                    "${initrd_installed_kernel_modules}",
+                    "${initrd_configured_kernel_modules}",
+                    "",
                 ]
             ),
         ]
-
-    def check_new_config(self, config_path: str):
-        click.echo("Checking created config...")
-        builtin, modules = self._do_parse_config(config_path)
-        self._do_check_config(builtin, modules)
-        self._do_check_initrd(builtin, modules)
-
-    def _do_parse_config(self, config_path: str):
-        builtin = []
-        modules = []
-        # tokenize .config and store options in builtin[] or modules[]
-        with open(config_path, encoding="utf8") as file:
-            for line in file:
-                tok = line.strip().split("=")
-                items = len(tok)
-                if items == 2:
-                    opt = tok[0].upper()
-                    val = tok[1].upper()
-                    if val == "Y":
-                        builtin.append(opt)
-                    elif val == "M":
-                        modules.append(opt)
-        return builtin, modules
-
-    def _do_check_config(self, builtin: List[str], modules: List[str]):
-        # check the resulting .config has all the necessary options
-        msg = (
-            "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
-            "Your kernel config is missing some features that Ubuntu Core "
-            "recommends or requires.\n"
-            "While we will not prevent you from building this kernel snap, "
-            "we suggest you take a look at these:\n"
-        )
-        required_opts = (
-            required_generic + required_security + required_snappy + required_systemd
-        )
-        missing = []
-
-        for code in required_opts:
-            opt = f"CONFIG_{code}"
-            if opt in builtin or opt in modules:
-                continue
-            missing.append(opt)
-
-        if missing:
-            warn = f"\n{msg}\n"
-            for opt in missing:
-                note = ""
-                if opt == "CONFIG_CC_STACKPROTECTOR_STRONG":
-                    note = "(4.1.x and later versions only)"
-                elif opt == "CONFIG_DEVPTS_MULTIPLE_INSTANCES":
-                    note = "(4.8.x and earlier versions only)"
-                warn += f"{opt} {note}\n"
-            click.echo(warn)
-
-    def _do_check_initrd(self, builtin: List[str], modules: List[str]):
-        # check all required_boot[] items are either builtin or part of initrd
-        msg = (
-            "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
-            "The following features are deemed boot essential for\n"
-            "ubuntu core, consider making them static[=Y] or adding\n"
-            "the corresponding module to initrd:\n"
-        )
-        missing = []
-
-        for code in required_boot:
-            opt = f"CONFIG_{code.upper()}"
-            if opt in builtin:
-                continue
-            if opt in modules and code in self.options.kernel_initrd_modules:
-                continue
-            missing.append(opt)
-
-        if missing:
-            warn = f"\n{msg}\n"
-            for opt in missing:
-                warn += f"{opt}\n"
-            click.echo(warn)
 
     def _clean_old_build_cmd(self) -> List[str]:
         return [
@@ -1418,9 +1336,9 @@ class PluginImpl(PluginV2):
         if self.options.kernel_compiler:
             # at the moment only clang is supported as alternative, warn otherwise
             if self.options.kernel_compiler != "clang":
-                click.echo("Only other 'supported' compiler is clang")
-                click.echo("hopefully you know what you are doing")
-            self.make_cmd.append(f"CC=\"{self.options.kernel_compiler}\"")
+                logger.warning("Only other 'supported' compiler is clang")
+                logger.info("hopefully you know what you are doing")
+            self.make_cmd.append(f'CC="{self.options.kernel_compiler}"')
         if self.options.kernel_compiler_parameters:
             for opt in self.options.kernel_compiler_parameters:
                 self.make_cmd.append(str(opt))
@@ -1460,7 +1378,7 @@ class PluginImpl(PluginV2):
         return build_packages
 
     def get_build_environment(self) -> Dict[str, str]:
-        click.echo("Getting build env...")
+        logger.info("Getting build env...")
         self._init_build_env()
 
         env = {
@@ -1480,7 +1398,9 @@ class PluginImpl(PluginV2):
                 os.path.join("${SNAPCRAFT_STAGE}", f)
                 for f in self.options.kernel_compiler_paths
             ]
-            path = custom_paths + [env["PATH"], ]
+            path = custom_paths + [
+                env["PATH"],
+            ]
             env["PATH"] = ":".join(path)
 
         if "MAKEFLAGS" in os.environ:
@@ -1513,7 +1433,9 @@ class PluginImpl(PluginV2):
     def _get_install_command(self) -> List[str]:
         # install to installdir
         make_cmd = self.make_cmd.copy()
-        make_cmd += ["CONFIG_PREFIX=${SNAPCRAFT_PART_INSTALL}", ]
+        make_cmd += [
+            "CONFIG_PREFIX=${SNAPCRAFT_PART_INSTALL}",
+        ]
         make_cmd += self.make_install_targets
         cmd = [
             'echo "Installing kernel build..."',
@@ -1587,42 +1509,44 @@ class PluginImpl(PluginV2):
         if self.options.kernel_enable_perf:
             outdir = '"${SNAPCRAFT_PART_BUILD}/tools/perf"'
             mkdir_cmd = [
-                'mkdir',
-                '-p',
+                "mkdir",
+                "-p",
                 outdir,
             ]
             make_cmd = self.make_cmd.copy()
             perf_cmd = [
                 # Override source and build directories
-                '-C',
+                "-C",
                 '"${SNAPCRAFT_PART_SRC}/tools/perf"',
-                f'O={outdir}',
+                f"O={outdir}",
             ]
             make_cmd += perf_cmd
             install_cmd = [
-                'install',
-                '-Dm0755',
+                "install",
+                "-Dm0755",
                 '"${SNAPCRAFT_PART_BUILD}/tools/perf/perf"',
                 '"${SNAPCRAFT_PART_INSTALL}/bin/perf"',
             ]
             return [
                 'echo "Building perf binary..."',
-                ' '.join(mkdir_cmd),
-                ' '.join(make_cmd),
-                ' '.join(install_cmd),
+                " ".join(mkdir_cmd),
+                " ".join(make_cmd),
+                " ".join(install_cmd),
             ]
         return [
             'echo "Not building perf binary"',
         ]
 
     def get_build_commands(self) -> List[str]:
-        click.echo("Getting build commands...")
+        logger.info("Getting build commands...")
         self._configure_compiler()
         # kernel source can be either SNAPCRAFT_PART_SRC or SNAPCRAFT_PROJECT_DIR
         return [
-            '[ -d ${SNAPCRAFT_PART_SRC}/kernel ] && KERNEL_SRC=${SNAPCRAFT_PART_SRC} || KERNEL_SRC=${SNAPCRAFT_PROJECT_DIR}',
+            "[ -d ${SNAPCRAFT_PART_SRC}/kernel ] && KERNEL_SRC=${SNAPCRAFT_PART_SRC} || KERNEL_SRC=${SNAPCRAFT_PROJECT_DIR}",
             'echo "PATH=$PATH"',
             'echo "KERNEL_SRC=${KERNEL_SRC}"',
+            "",
+            *self._get_initrd_kernel_modules(),
             "",
             *self._link_files_fnc_cmd(),
             "",
@@ -1638,8 +1562,8 @@ class PluginImpl(PluginV2):
             *self._clean_old_build_cmd(),
             "\n",
             *self._get_configure_command(),
-            # "\n",
-            # *self._call_check_config_cmd(),
+            "\n",
+            *self._call_check_config_cmd(),
             "\n",
             *self._get_build_command(),
             "\n",
@@ -1656,3 +1580,90 @@ class PluginImpl(PluginV2):
     def out_of_source_build(self):
         # user src dir without need to link it to build dir, which takes ages
         return True
+
+
+def check_new_config(config_path: str, initrd_modules: List[str]):
+    print("Checking created config...")
+    builtin, modules = _do_parse_config(config_path)
+    _do_check_config(builtin, modules)
+    _do_check_initrd(builtin, modules, initrd_modules)
+
+
+def _do_parse_config(config_path: str):
+    builtin = []
+    modules = []
+    # tokenize .config and store options in builtin[] or modules[]
+    with open(config_path, encoding="utf8") as file:
+        for line in file:
+            tok = line.strip().split("=")
+            items = len(tok)
+            if items == 2:
+                opt = tok[0].upper()
+                val = tok[1].upper()
+                if val == "Y":
+                    builtin.append(opt)
+                elif val == "M":
+                    modules.append(opt)
+    return builtin, modules
+
+
+def _do_check_config(builtin: List[str], modules: List[str]):
+    # check the resulting .config has all the necessary options
+    msg = (
+        "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
+        "Your kernel config is missing some features that Ubuntu Core "
+        "recommends or requires.\n"
+        "While we will not prevent you from building this kernel snap, "
+        "we suggest you take a look at these:\n"
+    )
+    required_opts = (
+        required_generic + required_security + required_snappy + required_systemd
+    )
+    missing = []
+
+    for code in required_opts:
+        opt = f"CONFIG_{code}"
+        if opt in builtin or opt in modules:
+            continue
+        missing.append(opt)
+
+    if missing:
+        warn = f"\n{msg}\n"
+        for opt in missing:
+            note = ""
+            if opt == "CONFIG_CC_STACKPROTECTOR":
+                note = "(4.0 – 4.15 versions only)"
+            elif opt == "CONFIG_CC_STACKPROTECTOR_STRONG":
+                note = "(4.0 – 4.17 versions only)"
+            warn += f"{opt} {note}\n"
+        logger.warning(warn)
+
+
+def _do_check_initrd(builtin: List[str], modules: List[str], initrd_modules: List[str]):
+    # check all config items are either builtin or part of initrd as modules
+    msg = (
+        "**** WARNING **** WARNING **** WARNING **** WARNING ****\n"
+        "The following features are deemed boot essential for\n"
+        "ubuntu core, consider making them static[=Y] or adding\n"
+        "the corresponding module to initrd:\n"
+    )
+    missing = []
+
+    for code in required_boot:
+        opt = f"CONFIG_{code.upper()}"
+        if opt in builtin:
+            continue
+        if opt in modules and code in initrd_modules:
+            continue
+        missing.append(opt)
+
+    if missing:
+        warn = f"\n{msg}\n"
+        for opt in missing:
+            warn += f"{opt}\n"
+        logger.warning(warn)
+
+
+# allow callback for config check
+if __name__ == "__main__":
+    globals()[sys.argv[1]](sys.argv[2], sys.argv[3:])
