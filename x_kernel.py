@@ -366,7 +366,6 @@ class PluginImpl(PluginV2):
     def _init_build_env(self) -> None:
         # first get all the architectures, new v2 plugin is making life difficult
         logger.info("Initializing build env...")
-        self._check_build_env()
         self._get_target_architecture()
         self._get_deb_architecture()
         self._get_kernel_architecture()
@@ -389,19 +388,6 @@ class PluginImpl(PluginV2):
         )
 
         self.snapd_snap = os.path.join("${SNAPCRAFT_PART_BUILD}", snapd_snap_file_name)
-
-    def _check_build_env(self) -> None:
-        """Ensure the environment has set snappy ppa to build kernel snap."""
-        result = subprocess.run(
-            ["apt-cache", "search", "ubuntu-core-initramfs"],
-            check=True,
-            capture_output=True,
-            universal_newlines=True,
-        )
-        if result.stdout.find("ubuntu-core-initramfs") == -1:
-            raise logger.error(
-                "Likely missing ppa definition in the snapcraft.yaml.\nPlease ensure following ppa definition is present:\npackage-repositories:\n  - type: apt\n    ppa: snappy-dev/image\n\n ",
-            )
 
     def _get_target_architecture(self) -> None:
         # TODO: there is bug in snapcraft and target arch is not
@@ -1375,6 +1361,35 @@ class PluginImpl(PluginV2):
                 "libtool",
                 "python3",
             }
+        """TODO: remove once snapcraft allows to the plugins to add ppa
+        dracut-core package has to come from ppa:snappy-dev/image
+        since plugin has no way to add ppa in API way, add ppa manually
+        not to run it every time, check if ppa file exists in /etc/apt
+        """
+        result = subprocess.run(
+            ["grep", "-r", '"snappy-dev/image/ubuntu"', "/etc/apt/sources.list.d"],
+            check=True,
+            capture_output=True,
+            universal_newlines=True,
+        )
+        if result.stdout.find("snappy-dev/image/ubuntu") == -1:
+            logger.info("adding paa:snappy-dev/image to handle initrd builds")
+            # first import key for the ppa
+            result = subprocess.run(
+                ["sudo", "apt-key adv", "--keyserver", "keyserver.ubuntu.com", "--recv-keys", "F1831DDAFC42E99D"],
+                capture_output=True,
+            )
+            if result.returncode:
+                raise logger.warning(f"failed to import key for ppa:snappy-dev/image: {result.stderr}")
+
+            # add ppa itself
+            result = subprocess.run(
+                ["sudo", "apt-add-repository", "-y", "ppa:snappy-dev/image"],
+                capture_output=True,
+            )
+            if result.returncode:
+                raise logger.warning(f"failed to add ppa:snappy-dev/image: {result.stderr}")
+
         return build_packages
 
     def get_build_environment(self) -> Dict[str, str]:
