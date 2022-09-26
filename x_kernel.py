@@ -188,6 +188,7 @@ _compressor_options = {"gz": "-7", "lz4": "-l -9", "xz": "-7", "zstd": "-1 -T0"}
 _SNAPD_SNAP_NAME = "snapd"
 _SNAPD_SNAP_FILE = "{snap_name}_{architecture}.snap"
 _ZFS_URL = "https://github.com/openzfs/zfs"
+_SNAPPY_DEV_KEY_FINGERPRINT = "F1831DDAFC42E99D"
 
 default_kernel_image_target = {
     "amd64": "bzImage",
@@ -378,7 +379,6 @@ class PluginImpl(PluginV2):
 
         self._check_cross_compilation()
         self._set_kernel_targets()
-
 
         # determine type of initrd
         snapd_snap_file_name = _SNAPD_SNAP_FILE.format(
@@ -1316,6 +1316,68 @@ class PluginImpl(PluginV2):
     def get_build_snaps(self) -> Set[str]:
         return set()
 
+    def _add_snappy_ppa(self) -> None:
+        """TODO: remove once snapcraft allows to the plugins to add ppa
+        dracut-core package has to come from ppa:snappy-dev/image
+        since plugin has no way to add ppa in API way, add ppa manually
+        not to run it every time, check if ppa file exists in /etc/apt
+        """
+        proc = subprocess.run(
+            ["grep", "snappy-dev/image/ubuntu", "/etc/apt/sources.list.d/*"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+        )
+
+        if not proc.stdout or proc.stdout.find("snappy-dev/image/ubuntu") == -1:
+            # check if we need to import key
+            try:
+                proc = subprocess.run(
+                    ["apt-key", "export", _SNAPPY_DEV_KEY_FINGERPRINT],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    check=True,
+                )
+            except subprocess.CalledProcessError as error:
+                # Export shouldn't exit with failure based on testing
+                raise logger.error(
+                    f"error to check for key={_SNAPPY_DEV_KEY_FINGERPRINT}: {error.output.decode()}"
+                )
+
+            apt_key_output = proc.stdout.decode()
+            if "BEGIN PGP PUBLIC KEY BLOCK" in apt_key_output:
+                logger.info("key for ppa:snappy-dev/image already imported")
+
+            if "nothing exported" in apt_key_output:
+                logger.info("importing key for ppa:snappy-dev/image")
+                # first import key for the ppa
+                try:
+                    subprocess.run(
+                        [
+                            "apt-key",
+                            "adv",
+                            "--keyserver",
+                            "keyserver.ubuntu.com",
+                            "--recv-keys",
+                            _SNAPPY_DEV_KEY_FINGERPRINT,
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        check=True,
+                    )
+                except subprocess.CalledProcessError as error:
+                    raise errors.AptGPGKeyInstallError(
+                        error.output.decode(), key=_SNAPPY_DEV_KEY_FINGERPRINT
+                    )
+
+            # add ppa itself
+            logger.warning("adding ppa:snappy-dev/image to handle initrd builds")
+            subprocess.run(
+                ["add-apt-repository", "-y", "ppa:snappy-dev/image"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+
     def get_build_packages(self) -> Set[str]:
         build_packages = {
             "bc",
@@ -1345,34 +1407,9 @@ class PluginImpl(PluginV2):
                 "libtool",
                 "python3",
             }
-        """TODO: remove once snapcraft allows to the plugins to add ppa
-        dracut-core package has to come from ppa:snappy-dev/image
-        since plugin has no way to add ppa in API way, add ppa manually
-        not to run it every time, check if ppa file exists in /etc/apt
-        """
-        result = subprocess.run(
-            ["grep", "-r", '"snappy-dev/image/ubuntu"', "/etc/apt/sources.list.d"],
-            check=True,
-            capture_output=True,
-            universal_newlines=True,
-        )
-        if result.stdout.find("snappy-dev/image/ubuntu") == -1:
-            logger.info("adding paa:snappy-dev/image to handle initrd builds")
-            # first import key for the ppa
-            result = subprocess.run(
-                ["sudo", "apt-key adv", "--keyserver", "keyserver.ubuntu.com", "--recv-keys", "F1831DDAFC42E99D"],
-                capture_output=True,
-            )
-            if result.returncode:
-                raise logger.warning(f"failed to import key for ppa:snappy-dev/image: {result.stderr}")
 
-            # add ppa itself
-            result = subprocess.run(
-                ["sudo", "apt-add-repository", "-y", "ppa:snappy-dev/image"],
-                capture_output=True,
-            )
-            if result.returncode:
-                raise logger.warning(f"failed to add ppa:snappy-dev/image: {result.stderr}")
+        # add snappy ppa to get correct initrd tools
+        self._add_snappy_ppa()
 
         return build_packages
 
