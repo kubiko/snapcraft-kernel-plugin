@@ -180,6 +180,7 @@ from typing import Any, Dict, List, Set
 
 from snapcraft_legacy.plugins.v2 import PluginV2
 from snapcraft_legacy.project._project_options import ProjectOptions
+from snapcraft_legacy.internal.repo import errors
 
 logger = logging.getLogger(__name__)
 
@@ -364,12 +365,21 @@ class PluginImpl(PluginV2):
             },
         }
 
-    def _init_build_env(self) -> None:
-        # first get all the architectures, new v2 plugin is making life difficult
-        logger.info("Initializing build env...")
+    def __init__(self, *, part_name: str, options) -> None:
+        super().__init__(part_name=str, options=options)
+        self.name = part_name
+        self.options = options
         self._get_target_architecture()
         self._get_deb_architecture()
         self._get_kernel_architecture()
+        # check if we are cross building
+        host_arch = os.getenv("SNAP_ARCH")
+        if host_arch != self.target_arch:
+            self._cross_building = True
+
+    def _init_build_env(self) -> None:
+        # first get all the architectures, new v2 plugin is making life difficult
+        logger.info("Initializing build env...")
 
         self.make_cmd = ["make", "-j$(nproc)"]
         # we are building out of tree, configure paths
@@ -432,9 +442,7 @@ class PluginImpl(PluginV2):
             logger.error("Unknown deb architecture!!!")
 
     def _check_cross_compilation(self) -> None:
-        host_arch = os.getenv("SNAP_ARCH")
-        if host_arch != self.target_arch:
-            logger.info(f"Configuring cross build to {self.kernel_arch}")
+        if self._cross_building:
             self.make_cmd.append(f"ARCH={self.kernel_arch}")
             self.make_cmd.append("CROSS_COMPILE=${SNAPCRAFT_ARCH_TRIPLET}-")
 
@@ -1372,7 +1380,7 @@ class PluginImpl(PluginV2):
             # add ppa itself
             logger.warning("adding ppa:snappy-dev/image to handle initrd builds")
             subprocess.run(
-                ["add-apt-repository", "-y", "ppa:snappy-dev/image"],
+                ["sudo", "add-apt-repository", "-y", "ppa:snappy-dev/image"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 check=True,
@@ -1408,6 +1416,10 @@ class PluginImpl(PluginV2):
                 "python3",
             }
 
+        # for cross build of zfs we also need libc6-dev:<target arch>
+        if self.options.kernel_enable_zfs_support and self._cross_building:
+            build_packages |= {f"libc6-dev:{self.target_arch}"}
+
         # add snappy ppa to get correct initrd tools
         self._add_snappy_ppa()
 
@@ -1423,7 +1435,7 @@ class PluginImpl(PluginV2):
             "DEB_ARCH": "${SNAPCRAFT_TARGET_ARCH}",
             "UC_INITRD_DEB": "${SNAPCRAFT_PART_BUILD}/ubuntu-core-initramfs",
             "SNAPD_UNPACKED_SNAP": "${SNAPCRAFT_PART_BUILD}/unpacked_snapd_snap",
-            "KERNEL_BUILD_ARCH_DIR": "${SNAPCRAFT_PART_BUILD}/arch/${ARCH}/boot",
+            "KERNEL_BUILD_ARCH_DIR": f"${{SNAPCRAFT_PART_BUILD}}/arch/{self.kernel_arch}/boot",
             "KERNEL_IMAGE_TARGET": self.kernel_image_target,
         }
 
