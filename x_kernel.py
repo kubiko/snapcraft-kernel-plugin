@@ -1374,7 +1374,7 @@ class PluginImpl(PluginV2):
                     )
                 except subprocess.CalledProcessError as error:
                     raise errors.AptGPGKeyInstallError(
-                        error.output.decode(), key=_SNAPPY_DEV_KEY_FINGERPRINT
+                        output=error.output.decode(), key=_SNAPPY_DEV_KEY_FINGERPRINT
                     )
 
             # add ppa itself
